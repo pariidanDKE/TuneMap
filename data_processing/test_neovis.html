@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>NeoVis Test — Top 10 Artists</title>
+  <script src="https://unpkg.com/neovis.js@2.0.2/dist/neovis.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0d0d0d; font-family: Inter, Helvetica, sans-serif; }
+    #viz { width: 100vw; height: 100vh; }
+    #legend {
+      position: fixed; top: 20px; right: 20px;
+      background: #1a1a1a; border: 1px solid #333;
+      border-radius: 12px; padding: 16px 20px;
+      font-family: Inter, sans-serif; z-index: 999;
+    }
+    .legend-title { color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
+    .legend-item  { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+    .dot          { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+    .legend-label { color: #e0e0e0; font-size: 13px; }
+  </style>
+</head>
+<body>
+
+<div id="viz"></div>
+
+<div id="legend">
+  <div class="legend-title">Node Types</div>
+  <div class="legend-item"><div class="dot" style="background:#1DB954"></div><span class="legend-label">Artist</span></div>
+  <div class="legend-item"><div class="dot" style="background:#4ECDC4"></div><span class="legend-label">Track</span></div>
+  <div class="legend-item"><div class="dot" style="background:#FFE66D"></div><span class="legend-label">Album</span></div>
+  <div class="legend-item"><div class="dot" style="background:#FF6B6B"></div><span class="legend-label">Genre</span></div>
+</div>
+
+<script>
+  const config = {
+    containerId: "viz",
+    neo4j: {
+      serverUrl:      "bolt://localhost:7687",
+      serverUser:     "neo4j",
+      serverPassword: "54321Dan",
+    },
+    visConfig: {
+      nodes: {
+        shape: "dot",
+        font: { color: "#e0e0e0", size: 12, face: "Inter, Helvetica, sans-serif", background: "none", strokeWidth: 0 },
+        borderWidth: 0,
+      },
+      edges: {
+        arrows: { to: { enabled: true, scaleFactor: 0.4 } },
+        smooth: { type: "continuous" },
+      },
+      physics: {
+        solver: "forceAtlas2Based",
+        forceAtlas2Based: { gravitationalConstant: -50, springLength: 100, damping: 0.5 },
+        stabilization: { iterations: 200 },
+        minVelocity: 1,
+      },
+    },
+    labels: {
+      Artist: {
+        label: "name",
+        [NeoVis.NEOVIS_ADVANCED_CONFIG]: {
+          static: { color: { background: "#1DB954", border: "#1DB954" }, size: 30 }
+        }
+      },
+      Track: {
+        label: "name",
+        [NeoVis.NEOVIS_ADVANCED_CONFIG]: {
+          static: { color: { background: "#4ECDC4", border: "#4ECDC4" }, size: 8 }
+        }
+      },
+      Album: {
+        label: "title",
+        [NeoVis.NEOVIS_ADVANCED_CONFIG]: {
+          static: { color: { background: "#FFE66D", border: "#FFE66D" }, size: 20 }
+        }
+      },
+      Genre: {
+        label: "name",
+        [NeoVis.NEOVIS_ADVANCED_CONFIG]: {
+          static: { color: { background: "#FF6B6B", border: "#FF6B6B" }, size: 25 }
+        }
+      },
+    },
+    relationships: {
+      BY:       { [NeoVis.NEOVIS_ADVANCED_CONFIG]: { static: { color: "#555555", width: 1 } } },
+      FEATURES: { [NeoVis.NEOVIS_ADVANCED_CONFIG]: { static: { color: "#FF6B6B", dashes: true, width: 1.5 } } },
+      ON:       { [NeoVis.NEOVIS_ADVANCED_CONFIG]: { static: { color: "#444444", width: 1 } } },
+      IN_GENRE: { [NeoVis.NEOVIS_ADVANCED_CONFIG]: { static: { color: "#333333", width: 1 } } },
+    },
+    initialCypher: `
+      MATCH (a:Artist)<-[r1:BY]-(t:Track)
+      WITH a, count(t) AS tc ORDER BY tc DESC LIMIT 10
+      WITH collect(a.name) AS top
+      MATCH (a:Artist)<-[r1:BY]-(t:Track)
+      WHERE a.name IN top
+      OPTIONAL MATCH (t)-[r2:ON]->(al:Album)
+      OPTIONAL MATCH (t)-[r3:IN_GENRE]->(g:Genre)
+      OPTIONAL MATCH (t)-[r4:FEATURES]->(fa:Artist)
+      RETURN a, r1, t, r2, al, r3, g, r4, fa
+    `,
+  };
+
+  const viz = new NeoVis.default(config);
+  viz.render();
+</script>
+</body>
+</html>
