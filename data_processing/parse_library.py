@@ -8,6 +8,7 @@ Parses an Apple Music Library.xml (plist format) and outputs:
 
 import argparse
 import datetime
+import io
 import json
 import plistlib
 from collections import Counter
@@ -82,6 +83,30 @@ def build_overview(tracks: list[dict], playlists: list[dict]) -> dict:
         "playlist_names": sorted(playlist_names),
         "available_track_fields": all_fields,
     }
+
+
+def parse_from_bytes(xml_bytes: bytes) -> tuple[dict, dict]:
+    """Parse Library.xml from raw bytes. Returns (library_dict, overview_dict)."""
+    raw = plistlib.load(io.BytesIO(xml_bytes))
+    tracks = parse_tracks(raw.get("Tracks", {}))
+    playlists = parse_playlists(raw.get("Playlists", []))
+    library = {
+        "library_info": {
+            "date": serialize_value(raw.get("Date")),
+            "application_version": raw.get("Application Version"),
+            "music_folder": raw.get("Music Folder"),
+        },
+        "tracks": tracks,
+        "playlists": playlists,
+    }
+    overview = build_overview(tracks, playlists)
+    return library, overview
+
+
+def parse_from_path(path: Path) -> tuple[dict, dict]:
+    """Parse Library.xml from a file path. Returns (library_dict, overview_dict)."""
+    with open(path, "rb") as f:
+        return parse_from_bytes(f.read())
 
 
 def main():

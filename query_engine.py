@@ -75,6 +75,10 @@ You are a Cypher query expert for a Neo4j Knowledge Graph built from an Apple Mu
 - repetition_rate measures chorus/hook density (0–1): higher = more repeated lines.
 
 ### Cypher syntax rules (important — do not violate):
+- This is Neo4j Cypher, NOT SQL. Never use SELECT, FROM, WHERE as top-level clauses. Use MATCH, RETURN, WITH, WHERE.
+- String values that contain double quotes MUST use single-quote delimiters:
+  WRONG: {name: "The "Spring" Concerto"}
+  RIGHT: {name: 'The "Spring" Concerto'}
 - Cypher does NOT have GROUP BY. Aggregation is implicit: any non-aggregated variable in RETURN acts as the grouping key automatically. Never write GROUP BY.
 - Use WITH to pass variables between clauses and to filter/order before a subsequent MATCH.
 - LIMIT always goes at the end after ORDER BY.
@@ -453,7 +457,12 @@ AGENT_SYSTEM_PROMPT = (
     "- Lyric richness metrics (vocabulary variety, repetition rate)\n\n"
     "For broad taste summaries, always cover: genres, top artists, eras, moods, topics, "
     "language diversity, and loved/most-played tracks. "
-    "Deliver the final answer directly — do not narrate your reasoning process."
+    "Deliver the final answer directly — do not narrate your reasoning process.\n\n"
+    "IMPORTANT RULES:\n"
+    "- Always add LIMIT to every query — never fetch more than 60 records at a time.\n"
+    "- Keep your responses concise — do not over-explain, do not repeat data you already have.\n"
+    "- Make at most 6 targeted queries then synthesise — do not loop excessively.\n"
+    "- Call render_graph at most once. You MUST call it if the user's message contains words like 'graph', 'visualize', 'visualise', 'render', 'show', or 'map'. Otherwise call it only if a visualisation genuinely adds value."
 )
 
 AGENT_TOOLS = [
@@ -498,8 +507,10 @@ AGENT_TOOLS = [
                             "(1) the anchor node type(s) to centre the graph on — e.g. Artist, Genre, Mood, Topic, Era, Playlist; "
                             "(2) which relationships to traverse — e.g. BY, FEATURES, IN_GENRE, HAS_MOOD, HAS_TOPIC, IN_ERA, MENTIONS_PLACE; "
                             "(3) any secondary node types to expand into — e.g. Album, Track, Genre, Mood, Topic. "
-                            "Example: 'Anchor on top 10 Artists by play count. "
-                            "Expand via BY to their Tracks, IN_GENRE to Genre nodes, and FEATURES to collaborating Artists.' "
+                            "IMPORTANT: if you already know the specific names from your prior queries, list them explicitly "
+                            "so the graph anchors on exactly those nodes — do NOT ask the graph to re-derive them. "
+                            "Example: 'Anchor on these specific tracks: [Sunflower, Ric Flair Drip, Roses]. "
+                            "Expand via FEATURES to their collaborating Artist nodes.' "
                             "The more specific you are, the better the visualisation."
                         ),
                     }
@@ -515,8 +526,14 @@ VIZ_WORKER_PROMPT = SCHEMA_PROMPT.replace(
     """Now generate a Cypher query for neovis.js visualisation based on the description below.
 
 ### Technical rules — must follow all of them:
-- RETURN only node and relationship variables — never scalars (no count(), sum(), collect(), etc. in RETURN)
+- RETURN only node and relationship variables — NEVER scalars, aliases, or property accesses in RETURN.
+  WRONG: RETURN t.name, r, f.name, feat_count
+  RIGHT:  RETURN t, r, f
+- Do NOT mix node variables with scalar expressions in RETURN — neovis.js will silently produce an empty graph.
 - Every variable used in RETURN must be explicitly bound in a MATCH or OPTIONAL MATCH clause. Never reference a variable in RETURN that was not assigned — e.g. MATCH (a)<-[r1:BY]-(t) not MATCH (a)<-[:BY]-(t) if you intend to RETURN r1
+- Once a WITH clause is used, only the listed variables remain in scope. Never reference a variable that was consumed in a previous WITH.
+  WRONG: WITH t, count(f) AS cnt  /  WITH t, collect(f) AS feats   ← f is out of scope after first WITH
+  RIGHT:  WITH t, count(f) AS cnt, collect(f) AS feats              ← collect in the same WITH where f is still in scope
 - Use OPTIONAL MATCH for all secondary patterns to avoid dropping anchor nodes
 - Limit anchor nodes to 5–10 with WITH ... LIMIT before expanding
 - After anchoring, limit track expansion to the top 3–5 tracks per anchor node ordered by play_count DESC — never expand to all tracks of an artist
@@ -533,7 +550,26 @@ VIZ_WORKER_PROMPT = SCHEMA_PROMPT.replace(
     OPTIONAL MATCH (t)-[r2:ON]->(al:Album)
     OPTIONAL MATCH (t)-[r3:IN_GENRE]->(g:Genre)
     RETURN a, r1, t, r2, al, r3, g
+- For "top-N then expand" patterns, collect names in a WITH clause THEN re-MATCH using that list:
+    MATCH (t:Track)-[r:FEATURES]->(f:Artist)
+    WITH t, count(f) AS feat_count, collect(f.name) AS feat_names
+    ORDER BY feat_count DESC LIMIT 10
+    WITH collect(t.name) AS top_tracks
+    MATCH (t:Track)-[r:FEATURES]->(f:Artist) WHERE t.name IN top_tracks
+    RETURN t, r, f
+- If the description lists specific names (e.g. "Anchor on these tracks: [Sunflower, Ric Flair Drip]"),
+  use them directly as a hardcoded IN list — do NOT re-derive via aggregation:
+    MATCH (t:Track)-[r:FEATURES]->(f:Artist)
+    WHERE t.name IN ['Sunflower', 'Ric Flair Drip']
+    RETURN t, r, f
 - Return ONLY the Cypher query, no explanation, no markdown fences.
+
+### FEATURES relationship — critical:
+- FEATURES connects a Track to a featured Artist: (:Track)-[:FEATURES]->(:Artist)
+- There is NO (:Artist)-[:FEATURES]->(:Artist) relationship — never write it
+- To show collaborations between artists, always go through the Track:
+    WRONG: MATCH (a:Artist)-[r:FEATURES]->(f:Artist)
+    RIGHT: MATCH (t:Track)-[rb:BY]->(a:Artist), (t)-[rf:FEATURES]->(f:Artist) RETURN t, rb, a, rf, f
 
 ### Visual richness — aim for these:
 - Include at least 2–3 relationship types in the same query
@@ -556,6 +592,34 @@ VIZ_WORKER_PROMPT = SCHEMA_PROMPT.replace(
 )
 
 
+def _parse_cypher(raw: str) -> str:
+    """Strip markdown fences from a raw LLM Cypher response."""
+    cypher = raw.strip()
+    if cypher.startswith("```"):
+        cypher = cypher.split("```")[1]
+        if cypher.lower().startswith("cypher"):
+            cypher = cypher[6:]
+    return cypher.strip()
+
+
+def _has_graph_return(cypher: str) -> bool:
+    """
+    Returns True if the RETURN clause contains only bare node/relationship
+    variables — no property accesses (t.name) or function calls (count()).
+    neovis.js silently produces an empty graph if scalars are returned.
+    """
+    import re
+    match = re.search(
+        r'\bRETURN\b(.*?)(?:\bORDER\s+BY\b|\bLIMIT\b|\bSKIP\b|$)',
+        cypher, re.IGNORECASE | re.DOTALL,
+    )
+    if not match:
+        return False
+    return_clause = match.group(1)
+    # Property access (t.name) or function calls (count(...)) → scalars
+    return not re.search(r'\w+\.\w+|\w+\s*\(', return_clause)
+
+
 def build_agent(engine=None, max_steps: int = 8):
     from openai import OpenAI as OpenAIClient
 
@@ -564,22 +628,48 @@ def build_agent(engine=None, max_steps: int = 8):
 
     client = OpenAIClient(base_url=VLLM_BASE_URL, api_key="not-needed")
 
+    _VIZ_USER_SUFFIX = (
+        "\n\nCRITICAL: your RETURN clause must contain ONLY bare node and relationship "
+        "variables (e.g. RETURN t, r, a, g). No property accesses (t.name), no function "
+        "calls (count(), collect()), no aliases. neovis.js will produce an empty graph otherwise."
+    )
+
     def viz_worker(description: str) -> str:
-        response = client.chat.completions.create(
+        user_msg = f"Generate a neovis.js visualisation Cypher for: {description}{_VIZ_USER_SUFFIX}"
+        messages = [
+            {"role": "system", "content": VIZ_WORKER_PROMPT},
+            {"role": "user",   "content": user_msg},
+        ]
+        _llm_kwargs = dict(
             model=VLLM_MODEL,
-            messages=[
-                {"role": "system", "content": VIZ_WORKER_PROMPT},
-                {"role": "user",   "content": f"Generate a neovis.js visualisation Cypher for: {description}"},
-            ],
             temperature=0.0,
+            max_tokens=4096,
+            extra_body={"chat_template_kwargs": {"enable_thinking": False}},
         )
-        cypher = response.choices[0].message.content.strip()
-        # Strip markdown fences if the model added them
-        if cypher.startswith("```"):
-            cypher = cypher.split("```")[1]
-            if cypher.lower().startswith("cypher"):
-                cypher = cypher[6:]
-        return cypher.strip()
+
+        response = client.chat.completions.create(messages=messages, **_llm_kwargs)
+        cypher = _parse_cypher(response.choices[0].message.content)
+        _viz_tokens = response.usage.completion_tokens if response.usage else '?'
+        print(f"[viz_worker attempt=1] tokens={_viz_tokens} cypher={repr(cypher[:400])}", flush=True)
+
+        if not _has_graph_return(cypher):
+            print("[viz_worker] RETURN contains scalars — retrying with correction", flush=True)
+            messages.append({"role": "assistant", "content": cypher})
+            messages.append({
+                "role": "user",
+                "content": (
+                    "WRONG — your RETURN clause contains property accesses or function calls "
+                    "(e.g. t.name, count(), collect()). neovis.js cannot render scalars. "
+                    "Rewrite the query so RETURN contains ONLY bare node and relationship "
+                    "variables — nothing else. Example: RETURN t, r, a, g"
+                ),
+            })
+            response = client.chat.completions.create(messages=messages, **_llm_kwargs)
+            cypher = _parse_cypher(response.choices[0].message.content)
+            _viz_tokens = response.usage.completion_tokens if response.usage else '?'
+            print(f"[viz_worker attempt=2] tokens={_viz_tokens} cypher={repr(cypher[:400])}", flush=True)
+
+        return cypher
 
     def run_agent(question: str, on_step=None):
         messages = [
@@ -603,9 +693,16 @@ def build_agent(engine=None, max_steps: int = 8):
                 messages=messages,
                 **({"tools": tools_param} if tools_param else {}),
                 temperature=0.0,
+                max_tokens=4096,
                 extra_body={"chat_template_kwargs": {"enable_thinking": False}},
             )
             msg = response.choices[0].message
+            _usage = response.usage.completion_tokens if response.usage else '?'
+            if msg.tool_calls:
+                for tc in msg.tool_calls:
+                    print(f"[agent step={len(steps)}] tool={tc.function.name} args={tc.function.arguments[:200]} tokens={_usage}", flush=True)
+            else:
+                print(f"[agent step={len(steps)}] final answer tokens={_usage} preview={repr((msg.content or '')[:300])}", flush=True)
 
             # Serialise assistant message explicitly for vLLM compatibility
             assistant_msg = {"role": "assistant", "content": msg.content or ""}

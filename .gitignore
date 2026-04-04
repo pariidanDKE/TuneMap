@@ -1,4 +1,5 @@
 Data/
-data_processing/__pycache__
+__pycache__/
+data_processing/__pycache__/
 .env
 .python-version

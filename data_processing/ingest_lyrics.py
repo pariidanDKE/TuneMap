@@ -17,21 +17,10 @@ Run:
 
 import json
 import os
+from collections.abc import Callable
 from pathlib import Path
 
-from dotenv import load_dotenv
 from neo4j import GraphDatabase
-
-load_dotenv()
-
-# ── Config ────────────────────────────────────────────────────────────────────
-
-NEO4J_URI      = os.getenv("NEO4J_URI",      "bolt://localhost:7687")
-NEO4J_USER     = os.getenv("NEO4J_USER",     "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
-
-LIBRARY_PATH = Path("Data/library.json")
-THEMES_PATH  = Path("Data/track_themes.json")
 
 # ── Constraints ───────────────────────────────────────────────────────────────
 
@@ -71,66 +60,93 @@ MERGE (pl:Place {name: $place})
 MERGE (t)-[:MENTIONS_PLACE]->(pl)
 """
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+# ── Core ingest function ──────────────────────────────────────────────────────
 
-def main():
-    # Build Track ID → persistent_id lookup from library.json
-    with open(LIBRARY_PATH, encoding="utf-8") as f:
-        library = json.load(f)
+def ingest(
+    library: dict,
+    themes: dict,
+    neo4j_uri: str,
+    neo4j_user: str,
+    neo4j_password: str,
+    on_progress: Callable[[int, int], None] | None = None,
+):
+    """
+    Enrich existing Neo4j Track nodes with mood/topic/place data from themes dict.
+    on_progress(current, total) called every track.
+    """
     id_to_pid = {
         str(t["Track ID"]): t["Persistent ID"]
         for t in library["tracks"]
         if "Track ID" in t and "Persistent ID" in t
     }
 
-    with open(THEMES_PATH, encoding="utf-8") as f:
-        themes = json.load(f)
-
-    driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+    total   = len(themes)
+    skipped = 0
+    driver  = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
 
     with driver.session() as session:
         for c in CONSTRAINTS:
             session.run(c)
-        print("Constraints applied.")
-
-        total   = len(themes)
-        skipped = 0
 
         for i, (track_id, entry) in enumerate(themes.items(), 1):
             pid = id_to_pid.get(track_id)
             if not pid:
                 skipped += 1
+                if on_progress:
+                    on_progress(i, total)
                 continue
 
-            # Update lexical properties on the Track node
             session.run(UPDATE_TRACK_PROPS, {
-                "persistent_id":   pid,
-                "language":        entry.get("language"),
-                "total_words":     entry.get("total_words"),
-                "unique_words":    entry.get("unique_words"),
+                "persistent_id":    pid,
+                "language":         entry.get("language"),
+                "total_words":      entry.get("total_words"),
+                "unique_words":     entry.get("unique_words"),
                 "type_token_ratio": entry.get("type_token_ratio"),
-                "repetition_rate": entry.get("repetition_rate"),
-                "lyrics_found":    entry.get("lyrics_found", False),
+                "repetition_rate":  entry.get("repetition_rate"),
+                "lyrics_found":     entry.get("lyrics_found", False),
             })
 
-            # Mood relationships
             for mood in entry.get("moods", []):
                 session.run(ADD_MOOD, {"persistent_id": pid, "mood": mood})
 
-            # Topic relationships
             for topic in entry.get("topics", []):
                 session.run(ADD_TOPIC, {"persistent_id": pid, "topic": topic})
 
-            # Place relationships
             for place in entry.get("places", []):
                 session.run(ADD_PLACE, {"persistent_id": pid, "place": place})
 
-            if i % 200 == 0:
-                print(f"  {i}/{total} tracks processed ...")
-
-        print(f"\nDone. {total - skipped} tracks enriched, {skipped} skipped (no persistent_id match).")
+            if on_progress:
+                on_progress(i, total)
 
     driver.close()
+    return total - skipped, skipped
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+def main():
+    import os
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    neo4j_uri      = os.getenv("NEO4J_URI",      "bolt://localhost:7687")
+    neo4j_user     = os.getenv("NEO4J_USER",     "neo4j")
+    neo4j_password = os.getenv("NEO4J_PASSWORD", "")
+    library_path   = Path("Data/library.json")
+    themes_path    = Path("Data/track_themes.json")
+
+    with open(library_path, encoding="utf-8") as f:
+        library = json.load(f)
+    with open(themes_path, encoding="utf-8") as f:
+        themes = json.load(f)
+
+    def on_progress(current, total):
+        if current % 200 == 0:
+            print(f"  {current}/{total} tracks processed ...")
+
+    enriched, skipped = ingest(library, themes, neo4j_uri, neo4j_user, neo4j_password, on_progress=on_progress)
+    print(f"\nDone. {enriched} tracks enriched, {skipped} skipped (no persistent_id match).")
 
 
 if __name__ == "__main__":

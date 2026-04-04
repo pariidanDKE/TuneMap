@@ -110,7 +110,7 @@ Live progress via a background thread + `st.fragment(run_every=1)` polling loop.
 │                                                              │
 │  Optional: Lyrics Enrichment                                 │
 │  Adds moods, topics, places, language and vocabulary         │
-│  metrics to ~65% of your tracks via LRCLIB + local LLM.     │
+│  metrics to a subset available via LRCLIB + local LLM.     │
 │                                                              │
 │  ⚠️  Requires local vLLM running.  Est. time: 2–4 hours.    │
 │                                                              │

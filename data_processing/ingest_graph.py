@@ -20,19 +20,10 @@ Run:
 import json
 import os
 import re
+from collections.abc import Callable
 from pathlib import Path
 
-from dotenv import load_dotenv
 from neo4j import GraphDatabase
-
-load_dotenv()
-
-# ── Config ────────────────────────────────────────────────────────────────────
-
-NEO4J_URI      = os.getenv("NEO4J_URI",      "bolt://localhost:7687")
-NEO4J_USER     = os.getenv("NEO4J_USER",     "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
-LIBRARY_PATH   = Path("Data/library.json")
 
 # ── Genre normalisation map ───────────────────────────────────────────────────
 
@@ -192,32 +183,37 @@ def build_playlist_lookup(playlists: list) -> dict[int, list[str]]:
             lookup.setdefault(tid, []).append(name)
     return lookup
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+# ── Core ingest function ──────────────────────────────────────────────────────
 
-def main():
-    print(f"Loading {LIBRARY_PATH} ...")
-    with open(LIBRARY_PATH, encoding="utf-8") as f:
-        data = json.load(f)
-
-    tracks    = data["tracks"]
-    playlists = data["playlists"]
+def ingest(
+    library: dict,
+    neo4j_uri: str,
+    neo4j_user: str,
+    neo4j_password: str,
+    on_progress: Callable[[int, int, str], None] | None = None,
+):
+    """
+    Ingest a parsed library dict into Neo4j.
+    on_progress(current, total, track_name) called every track.
+    """
+    tracks    = library["tracks"]
+    playlists = library["playlists"]
     playlist_lookup = build_playlist_lookup(playlists)
+    total = len(tracks)
 
-    driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+    driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
 
     with driver.session() as session:
         create_constraints(session)
 
-        print(f"Ingesting {len(tracks)} tracks ...")
         for i, t in enumerate(tracks, 1):
-            pid     = t.get("Persistent ID")
-            primary = t.get("Album Artist") or t.get("Artist", "Unknown")
-            genre   = GENRE_MAP.get(t.get("Genre", "Unknown"), t.get("Genre", "Unknown"))
-            album   = normalise_album(t.get("Album", "Unknown"))
-            year    = t.get("Year", 0)
-            era     = year_to_era(year)
-
-            is_single = album.endswith("- Single")
+            pid        = t.get("Persistent ID")
+            primary    = t.get("Album Artist") or t.get("Artist", "Unknown")
+            genre      = GENRE_MAP.get(t.get("Genre", "Unknown"), t.get("Genre", "Unknown"))
+            album      = normalise_album(t.get("Album", "Unknown"))
+            year       = t.get("Year", 0)
+            era        = year_to_era(year)
+            is_single  = album.endswith("- Single")
             track_name = t.get("Name", "")
 
             session.run(INGEST_TRACK, {
@@ -247,23 +243,43 @@ def main():
                     "year":           year,
                 })
 
-            # Featured artists
-            featured = parse_featured(t.get("Artist", ""), primary)
-            for fa in featured:
+            for fa in parse_featured(t.get("Artist", ""), primary):
                 session.run(ADD_FEATURED, {"persistent_id": pid, "featured": fa})
 
-            # Playlists
-            track_id = t.get("Track ID")
-            for pl_name in playlist_lookup.get(track_id, []):
+            for pl_name in playlist_lookup.get(t.get("Track ID"), []):
                 session.run(ADD_PLAYLIST, {"persistent_id": pid, "playlist": pl_name})
 
-            if i % 200 == 0:
-                print(f"  {i}/{len(tracks)} tracks ingested ...")
+            if on_progress:
+                on_progress(i, total, track_name)
 
-        print("Deriving Artist→Genre edges ...")
         session.run(ARTIST_GENRE_EDGES)
 
     driver.close()
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+def main():
+    import os
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    neo4j_uri      = os.getenv("NEO4J_URI",      "bolt://localhost:7687")
+    neo4j_user     = os.getenv("NEO4J_USER",     "neo4j")
+    neo4j_password = os.getenv("NEO4J_PASSWORD", "")
+    library_path   = Path("Data/library.json")
+
+    print(f"Loading {library_path} ...")
+    with open(library_path, encoding="utf-8") as f:
+        library = json.load(f)
+
+    def on_progress(current, total, name):
+        if current % 200 == 0:
+            print(f"  {current}/{total} tracks ingested ...")
+
+    print(f"Ingesting {len(library['tracks'])} tracks ...")
+    ingest(library, neo4j_uri, neo4j_user, neo4j_password, on_progress=on_progress)
 
     print("\nIngestion complete.")
     print("Open http://localhost:7474 to explore your graph.")

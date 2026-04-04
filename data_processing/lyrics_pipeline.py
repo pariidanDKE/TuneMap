@@ -17,19 +17,17 @@ import re
 import urllib.parse
 import urllib.request
 from collections import Counter
+from collections.abc import Callable
 from pathlib import Path
 
 import aiohttp
 from langdetect import detect, LangDetectException
 
-# ── Config ────────────────────────────────────────────────────────────────────
+# ── Defaults (used by main() CLI only) ────────────────────────────────────────
 
-LIBRARY_PATH  = Path("Data/library.json")
-OUTPUT_PATH   = Path("Data/track_themes.json")
-
-LRCLIB_SEARCH = "https://lrclib.net/api/search"
-LLM_URL       = "http://localhost:8000/v1/chat/completions"
-LLM_MODEL     = "qwen3.5-9b-awq"
+_DEFAULT_LRCLIB_SEARCH = "https://lrclib.net/api/search"
+_DEFAULT_LLM_URL       = "http://localhost:8000/v1/chat/completions"
+_DEFAULT_LLM_MODEL     = "qwen3.5-9b-awq"
 
 # ── Fixed vocabularies ────────────────────────────────────────────────────────
 
@@ -130,9 +128,9 @@ def _is_road(place: str) -> bool:
 
 # ── Async LLM helper ──────────────────────────────────────────────────────────
 
-async def llm_call(session: aiohttp.ClientSession, system: str, user: str) -> dict | None:
+async def llm_call(session: aiohttp.ClientSession, system: str, user: str, llm_url: str, llm_model: str) -> dict | None:
     payload = {
-        "model":           LLM_MODEL,
+        "model":           llm_model,
         "messages":        [{"role": "system", "content": system},
                             {"role": "user",   "content": user}],
         "temperature":     0.1,
@@ -140,7 +138,7 @@ async def llm_call(session: aiohttp.ClientSession, system: str, user: str) -> di
         "chat_template_kwargs": {"enable_thinking": False},
     }
     try:
-        async with session.post(LLM_URL, json=payload, timeout=aiohttp.ClientTimeout(total=60)) as r:
+        async with session.post(llm_url, json=payload, timeout=aiohttp.ClientTimeout(total=60)) as r:
             data = await r.json()
             return json.loads(data["choices"][0]["message"]["content"])
     except Exception as e:
@@ -150,19 +148,19 @@ async def llm_call(session: aiohttp.ClientSession, system: str, user: str) -> di
 
 # ── Three extraction coroutines ───────────────────────────────────────────────
 
-async def extract_moods(session: aiohttp.ClientSession, name: str, artist: str, lyrics: str) -> list[str]:
+async def extract_moods(session: aiohttp.ClientSession, name: str, artist: str, lyrics: str, llm_url: str, llm_model: str) -> list[str]:
     system = (
         "Extract moods from the song lyrics. "
         "Return JSON: {\"moods\": [...]}. "
         "Pick ONLY from this exact list, nothing else: "
         + ", ".join(MOODS)
     )
-    result = await llm_call(session, system, f"Song: {name} by {artist}\n\nLyrics:\n{lyrics}")
+    result = await llm_call(session, system, f"Song: {name} by {artist}\n\nLyrics:\n{lyrics}", llm_url, llm_model)
     values = [v.lower() for v in result.get("moods", [])] if result else []
     return [v for v in values if v in MOODS_SET]
 
 
-async def extract_places(session: aiohttp.ClientSession, name: str, artist: str, lyrics: str) -> list[str]:
+async def extract_places(session: aiohttp.ClientSession, name: str, artist: str, lyrics: str, llm_url: str, llm_model: str) -> list[str]:
     system = (
         "Extract real-world cities, countries, and regions mentioned in the lyrics. "
         "Valid examples: 'Toronto', 'Los Angeles', 'Brooklyn', 'France', 'the Bronx'. "
@@ -171,12 +169,12 @@ async def extract_places(session: aiohttp.ClientSession, name: str, artist: str,
         "If unsure whether something is a city/country/region, leave it out. "
         "Return JSON: {\"places\": [...]}"
     )
-    result = await llm_call(session, system, f"Song: {name} by {artist}\n\nLyrics:\n{lyrics}")
+    result = await llm_call(session, system, f"Song: {name} by {artist}\n\nLyrics:\n{lyrics}", llm_url, llm_model)
     values = [v.lower() for v in result.get("places", [])] if result else []
     return [v for v in values if not _is_road(v)]
 
 
-async def extract_topics(session: aiohttp.ClientSession, name: str, artist: str, genre: str, lyrics: str) -> list[str]:
+async def extract_topics(session: aiohttp.ClientSession, name: str, artist: str, genre: str, lyrics: str, llm_url: str, llm_model: str) -> list[str]:
     allowed     = topics_for_genre(genre)
     allowed_set = {t.lower() for t in allowed}
     system = (
@@ -185,42 +183,9 @@ async def extract_topics(session: aiohttp.ClientSession, name: str, artist: str,
         + ", ".join(allowed)
         + ". Return JSON: {\"topics\": [...]}"
     )
-    result = await llm_call(session, system, f"Song: {name} by {artist}\n\nLyrics:\n{lyrics}")
+    result = await llm_call(session, system, f"Song: {name} by {artist}\n\nLyrics:\n{lyrics}", llm_url, llm_model)
     values = [v.lower() for v in result.get("topics", [])] if result else []
     return [v for v in values if v in allowed_set]
-
-
-# ── Deterministic lyrics features ────────────────────────────────────────────
-
-def lyrics_features(lyrics: str) -> dict:
-    """Compute deterministic features from raw lyrics text."""
-    # Tokenise: lowercase words only, strip punctuation
-    words = re.findall(r"[a-zA-Z\u00C0-\u024F\u0400-\u04FF]+", lyrics.lower())
-    total_words  = len(words)
-    unique_words = len(set(words))
-    ttr          = round(unique_words / total_words, 4) if total_words else 0.0
-
-    # Line-level repetition: fraction of lines that appear more than once
-    lines        = [l.strip() for l in lyrics.splitlines() if l.strip()]
-    total_lines  = len(lines)
-    from collections import Counter
-    line_counts  = Counter(lines)
-    repeated     = sum(c for c in line_counts.values() if c > 1)
-    repetition   = round(repeated / total_lines, 4) if total_lines else 0.0
-
-    # Language detection
-    try:
-        language = detect(lyrics)
-    except LangDetectException:
-        language = "unknown"
-
-    return {
-        "language":        language,
-        "total_words":     total_words,
-        "unique_words":    unique_words,
-        "type_token_ratio": ttr,
-        "repetition_rate": repetition,
-    }
 
 
 # ── Deterministic lyrics features ────────────────────────────────────────────
@@ -252,10 +217,10 @@ def lyrics_features(lyrics: str) -> dict:
 
 # ── LRCLIB (sync, offloaded to executor) ─────────────────────────────────────
 
-def fetch_lyrics_sync(track_name: str, artist: str) -> str | None:
+def fetch_lyrics_sync(track_name: str, artist: str, lrclib_url: str = _DEFAULT_LRCLIB_SEARCH) -> str | None:
     params = urllib.parse.urlencode({"q": track_name, "artistName": artist})
     req    = urllib.request.Request(
-        f"{LRCLIB_SEARCH}?{params}",
+        f"{lrclib_url}?{params}",
         headers={"User-Agent": "AppleMusicKG/1.0"},
     )
     try:
@@ -274,41 +239,51 @@ def fetch_lyrics_sync(track_name: str, artist: str) -> str | None:
     return None
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+# ── Callable run() for use from app.py ───────────────────────────────────────
 
-async def main():
-    with open(LIBRARY_PATH, encoding="utf-8") as f:
-        data = json.load(f)
-    tracks = data["tracks"]
+async def run(
+    library: dict,
+    output_path: Path,
+    llm_url: str,
+    llm_model: str,
+    lrclib_url: str = _DEFAULT_LRCLIB_SEARCH,
+    on_progress: Callable[[int, int, int, str], None] | None = None,
+):
+    """
+    Run the full lyrics enrichment pipeline on a parsed library dict.
+    Results are saved incrementally to output_path (resumable).
+    on_progress(current, total, found, track_name) called after each track.
+    """
+    tracks = library["tracks"]
 
     results: dict = {}
-    if OUTPUT_PATH.exists():
+    if output_path.exists():
         try:
-            with open(OUTPUT_PATH, encoding="utf-8") as f:
+            with open(output_path, encoding="utf-8") as f:
                 results = json.load(f)
         except json.JSONDecodeError:
-            print("Warning: track_themes.json was corrupt/empty, starting fresh")
+            pass
 
     already_done = set(results.keys())
     pending      = [t for t in tracks if str(t.get("Track ID")) not in already_done]
     total        = len(tracks)
+    found        = sum(1 for v in results.values() if v.get("lyrics_found"))
 
-    print(f"{len(pending)} tracks to process ({len(already_done)} already done)")
+    loop = asyncio.get_event_loop()
 
     async with aiohttp.ClientSession() as session:
-        for i, t in enumerate(pending, 1):
+        processed = len(already_done)
+        for t in pending:
             track_id = str(t.get("Track ID"))
             name     = t.get("Name", "")
             artist   = t.get("Album Artist") or t.get("Artist", "")
             genre    = t.get("Genre", "Unknown")
 
-            print(f"[{i}/{len(pending)}] {name} – {artist} ({genre})")
-
-            loop   = asyncio.get_event_loop()
-            lyrics = await loop.run_in_executor(None, fetch_lyrics_sync, name, artist)
+            lyrics = await loop.run_in_executor(
+                None, fetch_lyrics_sync, name, artist, lrclib_url
+            )
 
             if not lyrics:
-                print("    no lyrics found")
                 results[track_id] = {
                     "track_id": int(track_id), "name": name, "artist": artist,
                     "genre": genre, "lyrics_found": False,
@@ -320,12 +295,12 @@ async def main():
                 features, (moods, places, topics) = await asyncio.gather(
                     loop.run_in_executor(None, lyrics_features, lyrics),
                     asyncio.gather(
-                        extract_moods(session, name, artist, lyrics),
-                        extract_places(session, name, artist, lyrics),
-                        extract_topics(session, name, artist, genre, lyrics),
+                        extract_moods(session, name, artist, lyrics, llm_url, llm_model),
+                        extract_places(session, name, artist, lyrics, llm_url, llm_model),
+                        extract_topics(session, name, artist, genre, lyrics, llm_url, llm_model),
                     ),
                 )
-                print(f"    lang={features['language']} ttr={features['type_token_ratio']} moods={moods}")
+                found += 1
                 results[track_id] = {
                     "track_id": int(track_id), "name": name, "artist": artist,
                     "genre": genre, "lyrics_found": True,
@@ -333,10 +308,33 @@ async def main():
                     "moods": moods, "places": places, "topics": topics,
                 }
 
-            with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
+            with open(output_path, "w", encoding="utf-8") as f:
                 json.dump(results, f, ensure_ascii=False, indent=2)
 
-    print(f"\nDone. Results saved to {OUTPUT_PATH}")
+            processed += 1
+            if on_progress:
+                on_progress(processed, total, found, name)
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+async def main():
+    library_path = Path("Data/library.json")
+    output_path  = Path("Data/track_themes.json")
+
+    with open(library_path, encoding="utf-8") as f:
+        library = json.load(f)
+
+    def on_progress(current, total, found, name):
+        print(f"[{current}/{total}] {name} (found: {found})")
+
+    await run(
+        library, output_path,
+        llm_url=_DEFAULT_LLM_URL,
+        llm_model=_DEFAULT_LLM_MODEL,
+        on_progress=on_progress,
+    )
+    print(f"\nDone. Results saved to {output_path}")
 
 
 if __name__ == "__main__":
