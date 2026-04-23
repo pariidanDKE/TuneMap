@@ -159,19 +159,29 @@ Metrics reported: mean GLEU (all 4,833), execution exact-match % (2,471 DB-acces
 
 ---
 
-## R-008: Transformers v5 + Unsloth Compatibility
+## R-008: Transformers + Unsloth Compatibility
 
-**Decision**: Install `transformers>=5.0.0` alongside latest unsloth. Unsloth's `unsloth-zoo` README lists Llama 4, Gemma 3n, Qwen3 as supported, confirming active v5-era compatibility.
+**Decision**: Install `unsloth>=2026.4.7` (PyPI, no extra needed when torch+cu128 is already present). System has CUDA Toolkit 12.8; torch must be installed first via `pip install torch --index-url https://download.pytorch.org/whl/cu128`. For fresh env bootstrap without torch, use `unsloth[cu128-ampere-torch290]` instead.
+
+**Version bounds** sourced from unsloth's own `pyproject.toml` (`huggingfacenotorch` extra). Our requirements.txt must stay within these to avoid pip conflicts:
+- `transformers>=4.51.3,!=4.52.0,!=4.52.1,!=4.52.2,!=4.52.3,!=4.53.0,!=4.54.0,!=4.55.0,!=4.55.1,!=4.57.0,!=4.57.4,!=4.57.5,!=5.0.0,!=5.1.0,<=5.5.0`
+- `trl>=0.18.2,!=0.19.0,<=0.24.0`
+- `peft>=0.18.0,!=0.11.0`
+- `datasets>=3.4.1,!=4.0.*,!=4.1.0,<4.4.0`
+- `accelerate>=0.34.1`
 
 **Installation** (requirements.txt):
 ```
-unsloth[cu124] @ git+https://github.com/unslothai/unsloth  # latest from source
-transformers>=5.0.0
-trl>=0.17
-peft>=0.15
-datasets>=3.0
+# Step 1 (once per env): pip install torch --index-url https://download.pytorch.org/whl/cu128
+# Step 2: pip install -r requirements.txt
+unsloth>=2026.4.7
+transformers>=4.51.3,!=4.52.0,!=4.52.1,!=4.52.2,!=4.52.3,!=4.53.0,!=4.54.0,!=4.55.0,!=4.55.1,!=4.57.0,!=4.57.4,!=4.57.5,!=5.0.0,!=5.1.0,<=5.5.0
+trl>=0.18.2,!=0.19.0,<=0.24.0
+peft>=0.18.0,!=0.11.0
+datasets>=3.4.1,!=4.0.*,!=4.1.0,<4.4.0
 nltk>=3.9
-accelerate>=1.0
+accelerate>=0.34.1
+neo4j>=5.0
 ```
 
 **Alternatives considered**: pinned release version — rejected because user explicitly requested latest unsloth.
@@ -187,8 +197,8 @@ Collected for direct comparison. Their config used BnB 4-bit + paged_adamw_8bit 
 | Model | gemma-2-9b-it | Qwen3.5-9B |
 | Quantization | 4-bit BnB | None (full bf16) |
 | LoRA r / alpha | 64 / 64 | 64 / 64 |
-| Batch size | 4 | 1 or 2 |
-| Grad accum | 8 | 32 or 16 |
+| Batch size | 4 | 1 (only viable — 22GB on 24GB card) |
+| Grad accum | 8 | 32 |
 | Effective batch | 32 | 32 |
 | LR | 2e-5 | 2e-5 |
 | Epochs | 1 | 1 |

@@ -14,10 +14,10 @@ Fine-tune `Qwen/Qwen3.5-9B` with LoRA (no quantization, full bf16) on the `neo4j
 ## Technical Context
 
 **Language/Version**: Python 3.12+
-**Primary Dependencies**: unsloth (latest from source), transformers>=5.0.0, trl>=0.17, peft>=0.15, datasets>=3.0, nltk>=3.9, accelerate>=1.0
+**Primary Dependencies**: torch+cu128 (pre-installed), unsloth>=2026.4.7, transformers>=5.0.0, trl>=0.17, peft>=0.15, datasets>=3.0, nltk>=3.9, accelerate>=1.0
 **Storage**: `training/` only — no writes outside this directory
 **Testing**: Manual eval script (`eval.py`) — two passes: translation-based GLEU (4,833 examples) + execution-based Exact Match on result sets (~2,471 DB-accessible examples); no pytest suite
-**Target Platform**: Linux, single GPU (A100 or equivalent, ≥16 GB VRAM)
+**Target Platform**: Linux, single GPU (RTX 3090)
 **Project Type**: ML training pipeline (script-based, not a library)
 **Performance Goals**: Complete 1 epoch over ~39K examples; adapter must load and generate clean Cypher
 **Constraints**: Effective batch size = 32; max_seq_length = 1600; no BnB quantization (unsloth docs explicitly state QLoRA is not recommended for Qwen3.5); VRAM: 22GB required (confirmed by unsloth docs), RTX 3090 has 24GB — 2GB headroom, batch=1 is the only viable option
@@ -112,15 +112,15 @@ See [research.md](research.md) for full findings. Key resolved items:
 | Item | Resolution |
 |------|------------|
 | Text-only API | `FastLanguageModel` (not `FastVisionModel`) — vision encoder excluded via `target_modules` |
-| No-quantization LoRA | `load_in_4bit=False`, `load_in_8bit=False`, `load_in_16bit=False`, `dtype=torch.bfloat16` |
+| No-quantization LoRA | `load_in_4bit=False`, `load_in_16bit=True` (native bf16); no dtype arg needed |
 | Paged optimizer | `paged_adamw_8bit` — confirmed from neo4j reference training config |
-| Effective batch size 32 | `per_device_train_batch_size=1`, `gradient_accumulation_steps=32` (adjust to 2/16 if VRAM allows) |
+| Effective batch size 32 | `per_device_train_batch_size=1`, `gradient_accumulation_steps=32` (batch=1 only — 22GB model on 24GB card) |
 | Dataset schema | `question` + `schema` → user turn; `cypher` → assistant turn; `database_reference` retained for exec eval |
 | Prompt format | Full system prompt (Table 3) + user turn ending with `Cypher output:` suffix |
 | Eval pass 1 | Translation-based: `sentence_gleu` on all 4,833 test examples |
 | Eval pass 2 | Execution-based: Exact Match on result sets for ~2,471 examples with `database_reference` set |
 | Syntax validation | Use `EXPLAIN <query>` on live Neo4j to validate `generate_dataset.py` output (R-012) |
-| Transformers v5 | `transformers>=5.0.0` alongside latest unsloth from source |
+| Transformers compat | bounds from unsloth pyproject.toml: `>=4.51.3,!=5.0.0,!=5.1.0,<=5.5.0`; torch+cu128 pre-installed |
 | `generate_dataset.py` | Exists, not validated — treat TuneMap data as supplementary, validate via EXPLAIN before mixing |
 
 ---

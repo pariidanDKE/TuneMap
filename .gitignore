@@ -4,3 +4,4 @@ data_processing/__pycache__/
 .env
 .python-version
 .claude/
+unsloth-pyproject.toml
