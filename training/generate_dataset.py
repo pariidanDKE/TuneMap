@@ -598,7 +598,8 @@ MATCH (t:Track)-[:HAS_MOOD]->(m:Mood {name: "uplifting"})
 MATCH (t)-[:HAS_TOPIC]->(tp:Topic)
 WHERE tp.name IN ["friendship", "love"]
 MATCH (t)-[:BY]->(a:Artist)
-RETURN t.name AS track, a.name AS artist, collect(DISTINCT tp.name) AS topics
+WITH t, a, collect(DISTINCT tp.name) AS topics
+RETURN t.name AS track, a.name AS artist, topics
 ORDER BY t.play_count DESC LIMIT 20""",
     ),
     (
@@ -698,7 +699,8 @@ MATCH (t:Track)-[:HAS_MOOD]->(m:Mood {name: "introspective"})
 MATCH (t)-[:HAS_TOPIC]->(tp:Topic)
 WHERE tp.name IN ["mental health", "isolation"]
 MATCH (t)-[:BY]->(a:Artist)
-RETURN t.name AS track, a.name AS artist, collect(DISTINCT tp.name) AS topics
+WITH t, a, collect(DISTINCT tp.name) AS topics
+RETURN t.name AS track, a.name AS artist, topics
 ORDER BY t.play_count DESC LIMIT 20""",
     ),
     (
@@ -787,9 +789,11 @@ MATCH (other:Track)-[:HAS_MOOD]->(m)
 MATCH (other)-[:HAS_TOPIC]->(tp)
 WHERE other <> loved AND other.loved = false
 MATCH (other)-[:BY]->(a:Artist)
-RETURN DISTINCT other.name AS track, a.name AS artist,
-       collect(DISTINCT m.name)[..3] AS shared_moods,
-       collect(DISTINCT tp.name)[..3] AS shared_topics
+WITH other, a,
+     collect(DISTINCT m.name)[..3] AS shared_moods,
+     collect(DISTINCT tp.name)[..3] AS shared_topics
+RETURN other.name AS track, a.name AS artist,
+       shared_moods, shared_topics
 ORDER BY other.play_count DESC LIMIT 20""",
     ),
     (

@@ -1,10 +1,12 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.0.0 → 1.0.1 (PATCH — clarification added to Principle II)
+Version change: 1.0.2 → 1.0.3 (PATCH — WebFetch summarizer caveat + unsloth API distinction corrected)
 Modified principles:
-  - II. Source-First Documentation for Evolving Libraries: added known API gotcha for
-    unsloth multimodal models (FastModel vs FastLanguageModel)
+  - II. Source-First Documentation for Evolving Libraries: added WebFetch summarizer
+    caveat (tool returns AI summary, not raw page — user-pasted content takes precedence);
+    corrected unsloth API distinction (FastLanguageModel for text-only, FastVisionModel
+    for vision fine-tuning — previous version had this backwards for Qwen3.5 text-only use)
 Added sections: none
 Removed sections: none
 Templates requiring updates:
@@ -53,10 +55,24 @@ as the ground truth prevents subtle bugs from stale parameter assumptions.
 class or function in site-packages (e.g., `~/.venv/lib/python3.x/site-packages/<pkg>/`)
 and confirm the signature matches the intended usage.
 
-**Known unsloth API distinction**: When working with multimodal models (e.g., vision-language
-models), MUST use `FastModel` (from `unsloth`) instead of `FastLanguageModel`. `FastLanguageModel`
-is for text-only models; using it with a multimodal model will fail or silently degrade.
-Verify the correct entry point in site-packages before loading any model.
+**Resource priority rule**: If the user provides a URL or document as a reference, the agent
+MUST fetch and read that resource FIRST — before consulting GitHub, context7, or any other
+secondary source. User-provided resources are the highest-priority source of truth. Searching
+secondary sources while ignoring a provided URL is a constitution violation.
+
+**WebFetch summarizer caveat**: The `WebFetch` tool does not return raw page content — it
+passes the fetched HTML through a small AI model that summarizes based on the agent's prompt.
+That summarizer can conflate code examples from different sections of a page or miss sections
+entirely. When a page has multiple code blocks (e.g. "text-only" vs "vision" fine-tuning
+paths), the summarizer may return the wrong one. MUST cross-check WebFetch output against
+any content the user pastes directly — user-pasted content always takes precedence.
+
+**Known unsloth API distinction for Qwen3.5**: The docs provide two paths depending on task:
+- **Text-only fine-tuning** (e.g. NL-to-Cypher): use `FastLanguageModel` — vision encoder
+  is excluded by omitting it from `target_modules`. Use `load_in_16bit=True` for bf16.
+  Place `use_gradient_checkpointing="unsloth"` in `get_peft_model`, not `from_pretrained`.
+- **Vision fine-tuning**: use `FastVisionModel.get_peft_model` with `finetune_language_layers`
+  / `finetune_vision_layers` params to control which components train.
 
 ### III. Simplicity Over Abstraction
 
@@ -117,4 +133,4 @@ before any implementation that depends on the new guidance.
 Check section that gates Phase 0 research and is re-checked after Phase 1 design. Any
 violation MUST be documented in the plan's Complexity Tracking table with justification.
 
-**Version**: 1.0.1 | **Ratified**: 2026-04-13 | **Last Amended**: 2026-04-14
+**Version**: 1.0.3 | **Ratified**: 2026-04-13 | **Last Amended**: 2026-04-23
