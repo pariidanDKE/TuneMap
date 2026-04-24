@@ -27,7 +27,7 @@
 
 **⚠️ CRITICAL**: Must complete before US1 implementation begins. Outcome informs T004.
 
-- [ ] T002 Run `training/generate_dataset.py` against the live Neo4j instance and write output to `training/data/cypher_dataset.jsonl`. Then validate each generated Cypher by running `EXPLAIN <query>` via the Neo4j Python driver — log any `CypherSyntaxError` rows. Produce a cleaned file `training/data/cypher_dataset_validated.jsonl` containing only syntax-error-free rows.
+- [x] T002 Run `training/generate_dataset.py` against the live Neo4j instance and write output to `training/data/cypher_dataset.jsonl`. Then validate each generated Cypher by running `EXPLAIN <query>` via the Neo4j Python driver — log any `CypherSyntaxError` rows. Produce a cleaned file `training/data/cypher_dataset_validated.jsonl` containing only syntax-error-free rows.
 
 **Checkpoint**: `training/data/cypher_dataset_validated.jsonl` exists. If it contains ≥10 rows, the TuneMap data gate is OPEN and T004 will include it. If empty or absent, T004 skips TuneMap data.
 
@@ -41,13 +41,13 @@
 
 ### Implementation
 
-- [ ] T003 [US1] Implement download and chatml formatting in `training/prepare_data.py`: load `neo4j/text2cypher-2024v1` train split (39,554 rows) via `datasets`, format each row as a 3-turn conversation using the full system prompt from the paper (Table 3) and user turn ending with `Cypher output:`. Retain `database_reference` and `source` fields alongside `conversations`.
+- [x] T003 [US1] Implement download and chatml formatting in `training/prepare_data.py`: load `neo4j/text2cypher-2024v1` train split (39,554 rows) via `datasets`, format each row as a 3-turn conversation using the full system prompt from the paper (Table 3) and user turn ending with `Cypher output:`. Retain `database_reference` and `source` fields alongside `conversations`.
 
-- [ ] T004 [US1] Add TuneMap merge logic to `training/prepare_data.py`: if `training/data/cypher_dataset_validated.jsonl` exists (gate from T002), load it and append rows to the train set (targeting 90/10 train/eval split from TuneMap data). If file absent, skip silently with a log line. Merge external + TuneMap rows, shuffle with `seed=3407`.
+- [x] T004 [US1] Add TuneMap merge logic to `training/prepare_data.py`: if `training/data/cypher_dataset_validated.jsonl` exists (gate from T002), load it and append rows to the train set (targeting 90/10 train/eval split from TuneMap data). If file absent, skip silently with a log line. Merge external + TuneMap rows, shuffle with `seed=3407`.
 
-- [ ] T005 [US1] Add split and write logic to `training/prepare_data.py`: write the shuffled merged set to `training/data/train.jsonl` and the external `test` split (4,833 rows, with `database_reference` retained) to `training/data/eval.jsonl`. Print row counts on completion.
+- [x] T005 [US1] Add split and write logic to `training/prepare_data.py`: write the shuffled merged set to `training/data/train.jsonl` and the external `test` split (4,833 rows, with `database_reference` retained) to `training/data/eval.jsonl`. Print row counts on completion.
 
-- [ ] T006 [US1] Run `python training/prepare_data.py` and manually verify: (a) `train.jsonl` has ≥39,554 rows, (b) `eval.jsonl` has 4,833 rows, (c) spot-check 5 rows from each for correct chatml structure and `Cypher output:` suffix on user turn, (d) confirm ~2,471 eval rows have non-null `database_reference`.
+- [x] T006 [US1] Run `python training/prepare_data.py` and manually verify: (a) `train.jsonl` has ≥39,554 rows, (b) `eval.jsonl` has 4,833 rows, (c) spot-check 5 rows from each for correct chatml structure and `Cypher output:` suffix on user turn, (d) confirm ~2,471 eval rows have non-null `database_reference`.
 
 **Checkpoint**: User Story 1 complete — `train.jsonl` and `eval.jsonl` exist and pass spot-checks.
 

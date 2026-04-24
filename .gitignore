@@ -5,3 +5,14 @@ data_processing/__pycache__/
 .python-version
 .claude/
 unsloth-pyproject.toml
+
+# Python
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Training artefacts (large files — not committed)
+training/data/
+training/outputs/
