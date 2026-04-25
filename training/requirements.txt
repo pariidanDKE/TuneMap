@@ -1,9 +1,9 @@
-# torch must be installed first (once per env):
-#   pip install torch --index-url https://download.pytorch.org/whl/cu128
-# Then:
-#   pip install -r requirements.txt
+# Usage: pip install -r training/requirements.txt
 # For fresh env bootstrap without torch pre-installed, use instead:
 #   pip install "unsloth[cu128-ampere-torch290]"
+
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch
 
 unsloth>=2026.4.7
 transformers>=4.51.3,!=4.52.0,!=4.52.1,!=4.52.2,!=4.52.3,!=4.53.0,!=4.54.0,!=4.55.0,!=4.55.1,!=4.57.0,!=4.57.4,!=4.57.5,!=5.0.0,!=5.1.0,<=5.5.0

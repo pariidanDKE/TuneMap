@@ -16,3 +16,4 @@ venv/
 # Training artefacts (large files — not committed)
 training/data/
 training/outputs/
+unsloth_compiled_cache/

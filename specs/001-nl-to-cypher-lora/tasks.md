@@ -61,15 +61,15 @@
 
 ### Implementation
 
-- [ ] T007 [US2] Implement model loading in `training/train.py`: `FastLanguageModel.from_pretrained("Qwen/Qwen3.5-9B", max_seq_length=1600, load_in_4bit=False, load_in_16bit=True, full_finetuning=False)`. Add NLTK `punkt` download at top of script.
+- [x] T007 [US2] Implement model loading in `training/train.py`: `FastLanguageModel.from_pretrained("Qwen/Qwen3.5-9B", max_seq_length=1600, load_in_4bit=False, load_in_16bit=True, full_finetuning=False)`. Add NLTK `punkt` download at top of script.
 
-- [ ] T008 [US2] Implement LoRA configuration in `training/train.py`: `FastLanguageModel.get_peft_model` with `r=64`, `target_modules=["q_proj","k_proj","v_proj","o_proj","gate_proj","up_proj","down_proj"]`, `lora_alpha=64`, `lora_dropout=0`, `bias="none"`, `use_gradient_checkpointing="unsloth"`, `random_state=3407`, `max_seq_length=1600`.
+- [x] T008 [US2] Implement LoRA configuration in `training/train.py`: `FastLanguageModel.get_peft_model` with `r=64`, `target_modules=["q_proj","k_proj","v_proj","o_proj","gate_proj","up_proj","down_proj"]`, `lora_alpha=64`, `lora_dropout=0`, `bias="none"`, `use_gradient_checkpointing="unsloth"`, `random_state=3407`, `max_seq_length=1600`.
 
-- [ ] T009 [US2] Implement dataset loading and `SFTTrainer` in `training/train.py`: load `training/data/train.jsonl`, apply chatml chat template via `get_chat_template`, configure `SFTTrainer` with `SFTConfig(per_device_train_batch_size=1, gradient_accumulation_steps=32, num_train_epochs=1, learning_rate=2e-5, max_seq_length=1600, bf16=True, fp16=False, optim="paged_adamw_8bit", lr_scheduler_type="linear", warmup_ratio=0.1, logging_steps=5, save_steps=50, save_total_limit=2, output_dir="training/outputs", seed=3407, dataset_num_proc=1)`.
+- [x] T009 [US2] Implement dataset loading and `SFTTrainer` in `training/train.py`: load `training/data/train.jsonl`, apply chatml chat template via `get_chat_template`, configure `SFTTrainer` with `SFTConfig(per_device_train_batch_size=1, gradient_accumulation_steps=32, num_train_epochs=1, learning_rate=2e-5, max_seq_length=1600, bf16=True, fp16=False, optim="paged_adamw_8bit", lr_scheduler_type="linear", warmup_ratio=0.1, logging_steps=5, save_steps=50, save_total_limit=2, output_dir="training/outputs", seed=3407, dataset_num_proc=1)`.
 
-- [ ] T010 [US2] Wrap trainer with `train_on_responses_only` in `training/train.py`: `instruction_part="<|im_start|>user\n"`, `response_part="<|im_start|>assistant\n"`. Call `trainer.train()`.
+- [x] T010 [US2] Wrap trainer with `train_on_responses_only` in `training/train.py`: `instruction_part="<|im_start|>user\n"`, `response_part="<|im_start|>assistant\n"`. Call `trainer.train()`.
 
-- [ ] T011 [US2] Add checkpoint saving to `training/train.py`: after training completes, call `model.save_pretrained("training/outputs/final_adapter")` and `tokenizer.save_pretrained("training/outputs/final_adapter")`. Add `model.save_pretrained_merged("training/outputs/merged_16bit", tokenizer, save_method="merged_16bit")` for vLLM integration.
+- [x] T011 [US2] Add checkpoint saving to `training/train.py`: after training completes, call `model.save_pretrained("training/outputs/final_adapter")` and `tokenizer.save_pretrained("training/outputs/final_adapter")`. Add `model.save_pretrained_merged("training/outputs/merged_16bit", tokenizer, save_method="merged_16bit")` for vLLM integration.
 
 - [ ] T012 [US2] Run `python training/train.py`. Monitor VRAM usage at start — if OOM, the 2GB headroom has been exceeded (investigate gradient checkpointing or reduce max_seq_length). On completion: verify `training/outputs/final_adapter/` exists, load adapter, generate Cypher for one test question (e.g. "What are all tracks by The Beatles?"), confirm output is raw Cypher only.
 
