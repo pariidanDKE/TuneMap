@@ -28,6 +28,9 @@ nltk.download("punkt_tab", quiet=True)
 import logging
 from pathlib import Path
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from datasets import load_dataset
 from unsloth import FastLanguageModel
 from unsloth.chat_templates import get_chat_template, train_on_responses_only
@@ -109,6 +112,8 @@ trainer = SFTTrainer(
         save_steps=50,
         save_total_limit=2,
         output_dir=OUTPUT_DIR,
+        report_to="wandb",
+        run_name="qwen3.5-9b-cypher",
         seed=3407,
         dataset_num_proc=1,
     ),

@@ -17,3 +17,4 @@ venv/
 training/data/
 training/outputs/
 unsloth_compiled_cache/
+wandb/

@@ -71,9 +71,15 @@
 
 - [x] T011 [US2] Add checkpoint saving to `training/train.py`: after training completes, call `model.save_pretrained("training/outputs/final_adapter")` and `tokenizer.save_pretrained("training/outputs/final_adapter")`. Add `model.save_pretrained_merged("training/outputs/merged_16bit", tokenizer, save_method="merged_16bit")` for vLLM integration.
 
-- [ ] T012 [US2] Run `python training/train.py`. Monitor VRAM usage at start — if OOM, the 2GB headroom has been exceeded (investigate gradient checkpointing or reduce max_seq_length). On completion: verify `training/outputs/final_adapter/` exists, load adapter, generate Cypher for one test question (e.g. "What are all tracks by The Beatles?"), confirm output is raw Cypher only.
+- [x] T012 [US2] Run `python training/train.py`. Monitor VRAM usage at start — if OOM, the 2GB headroom has been exceeded (investigate gradient checkpointing or reduce max_seq_length). On completion: verify `training/outputs/final_adapter/` exists, load adapter, generate Cypher for one test question (e.g. "What are all tracks by The Beatles?"), confirm output is raw Cypher only.
 
 **Checkpoint**: User Story 2 complete — adapter checkpoint exists, loads cleanly, generates raw Cypher.
+
+**Findings**:
+- Training: `training/train.py` — 1 epoch, 1117 steps, ~12.4h. `train_loss` average 0.1484, final step 0.0969. W&B run logged to `wandb/`.
+- Validation loss: `training/eval_loss.py` — eval loss **0.1131**, perplexity **1.12** (4,279 of 4,833 eval rows; 554 dropped due to truncation past `max_seq_length=1600`). Loss computed on assistant tokens only (same `train_on_responses_only` masking as training — directly comparable to train loss).
+- Smoke test: `training/smoke_test.py` — 5 random rows from `training/data/eval.jsonl`. 2/5 exact match, 2/5 semantically equivalent, 1/5 close (returned property vs. full node). All outputs raw Cypher — no prose, no markdown fences. Note: pass `eos_token_id` to `generate()` in eval.py to prevent occasional generation past `<|im_end|>`.
+- Adapter saved to `training/outputs/final_adapter/`, merged bf16 to `training/outputs/merged_16bit/`.
 
 ---
 
@@ -99,13 +105,27 @@
 
 ---
 
-## Phase 6: Polish & Cross-Cutting Concerns
+## Phase 6: Cloud Execution (Priority: P2.5 — required before eval can run)
+
+**Context**: Local GPU is occupied for the week. Eval must run on Colab (first attempt) or Vast.ai (fallback if Colab OOMs — Qwen3.5-9B needs ~22GB VRAM, likely too tight for a free T4). The eval scripts themselves are cloud-agnostic; this phase handles the upload and remote setup needed to run them.
+
+- [x] T021 Upload fine-tuned adapter and TuneMap dataset to HuggingFace Hub via `training/upload_to_hub.py`. Adapter repo: `danp27/qwen3.5-9b-nl2cypher-lora` (464MB). Dataset repo: `danp27/tunemap-cypher-dataset` (120 rows). Both private. Set `HF_TOKEN` in `.env` before running — no CLI login required.
+
+- [ ] T022 Write `training/cloud_setup.sh`: shell script that installs deps, pulls the adapter from HF, and launches eval. Steps: (1) `pip install -r training/requirements.txt`, (2) `python training/prepare_data.py` (regenerates `eval.jsonl` — TuneMap gate will be CLOSED on cloud, external data only), (3) `python training/eval.py --checkpoint danp27/qwen3.5-9b-nl2cypher-lora`. The adapter can be loaded directly from HF Hub by passing the HF repo ID as checkpoint path — no manual download needed.
+
+- [ ] T023 Run eval on Colab or Vast.ai: clone repo, set `HF_TOKEN` in env, run `bash training/cloud_setup.sh`. If Colab OOMs: rent RTX 3090/A100 on Vast.ai (PyTorch template, CUDA 12.x). Monitor VRAM at model load — Qwen3.5-9B bf16 needs ~18GB.
+
+**Checkpoint**: `training/outputs/eval_report.json` produced on remote instance, pulled back to local repo.
+
+---
+
+## Phase 7: Polish & Cross-Cutting Concerns
 
 - [ ] T018 Verify full pipeline runs end-to-end from scratch: `prepare_data.py` → `train.py` → `eval.py` with no manual steps in between. Document the single entry-point invocation in a comment block at the top of each script (SC-003).
 
 - [ ] T019 Confirm constitution compliance — audit all created files are within `training/`: run `find . -newer training/requirements.txt -not -path "./training/*" -not -path "./.git/*"` and confirm empty output (FR-008).
 
-- [ ] T020 Verify checkpoint resume (FR-006, US2 AS3): kill a fresh training run mid-epoch, restart with same command, confirm it picks up from the last `checkpoint-XXXX/` and does not restart from step 0.
+- [ ] T020 Verify checkpoint resume (FR-006, US2 AS3): kill a fresh training run mid-epoch, restart with same command, confirm it picks up from the last `checkpoint-XXXX/` and does not restart from step 0. Note: auto-resume did not trigger on first attempt — may need `trainer.train(resume_from_checkpoint=True)` explicitly.
 
 ---
 
@@ -118,7 +138,8 @@
 - **US1 (Phase 3)**: Depends on Phases 1 and 2 — T004 behaviour set by T002 result
 - **US2 (Phase 4)**: Depends on US1 completion — requires `train.jsonl`
 - **US3 (Phase 5)**: Depends on US2 completion — requires adapter checkpoint and `eval.jsonl`
-- **Polish (Phase 6)**: Depends on US1 + US2 + US3
+- **Cloud Execution (Phase 6)**: T021 depends on US2 (adapter must exist). T022–T023 depend on US3 (eval.py must be implemented)
+- **Polish (Phase 7)**: Depends on US1 + US2 + US3 + Phase 6
 
 ### Within Each User Story
 

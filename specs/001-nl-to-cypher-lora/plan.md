@@ -95,6 +95,27 @@ model.save_pretrained_merged("training/outputs/merged_16bit", tokenizer, save_me
 
 ---
 
+## Remote Execution (Cloud)
+
+**Context**: Local GPU occupied. Eval runs on Colab (first attempt) or Vast.ai RTX 3090/A100 (fallback if Colab OOMs).
+
+**HuggingFace Hub artefacts** (uploaded via `training/upload_to_hub.py`):
+- Adapter: `danp27/qwen3.5-9b-nl2cypher-lora` (464MB, private)
+- TuneMap dataset: `danp27/tunemap-cypher-dataset` (120 rows, private)
+
+**Cloud setup** (`training/cloud_setup.sh`):
+```bash
+pip install -r training/requirements.txt
+python training/prepare_data.py          # rebuilds eval.jsonl from HF; TuneMap gate CLOSED on cloud
+python training/eval.py --checkpoint danp27/qwen3.5-9b-nl2cypher-lora
+```
+
+The adapter can be passed as an HF repo ID directly — no manual download required. Authentication via `HF_TOKEN` in `.env`.
+
+**VRAM requirement**: Qwen3.5-9B bf16 needs ~18GB. Colab free tier (T4, 16GB) will OOM — use Colab Pro (A100) or Vast.ai RTX 3090/A100. Vast.ai workflow: PyTorch template, CUDA 12.x, SSH + tmux (see Vast.ai workflow memory entry).
+
+---
+
 ## Complexity Tracking
 
 > No constitution violations requiring justification.
