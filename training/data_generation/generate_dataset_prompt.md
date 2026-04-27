@@ -191,3 +191,84 @@ After writing the file, print:
 - Count per category
 - Any pairs that were discarded and why
 - 3 random sample rows (question + Cypher) from the final file
+
+
+# Cypher Geenration Journal
+
+# Cyper Dataset Generation Journal
+
+- target_rows: 150
+- accepted_rows: 150
+- discarded_rows: 0
+- output_file: training/data/cyper_validated_dataset.jsonl
+
+## Graph Value Snapshot
+- artists: 1107 values
+- genres: 55 values
+- albums: 1058 values
+- singles: 470 values
+- playlists: 7 values
+- moods: 13 values
+- topics: 49 values
+- places: 760 values
+- languages: 20 values
+
+## Style Samples (External Eval, multi-sample rounds)
+1. Q: Generate Cypher statement to query a graph database. Use only the provided relationship types and properties in the schema. Schema: Node properties: - **Question**   - `favorites`: INTEGER Example: "0"   - `answered`: BO
+   C: MATCH (q:Question) WITH min(q.createdAt) AS earliestDate, max(q.createdAt) AS latestDate RETURN duration.inSeconds(earliestDate, latestDate) AS timeDifference
+2. Q: Generate Cypher statement to query a graph database. Use only the provided relationship types and properties in the schema. Schema: Graph schema: Relevant node labels and their properties (with datatypes) are: Topic {lab
+   C: MATCH (n:Topic) WHERE n.label = 'Dynamical Systems_10' RETURN n
+3. Q: Generate Cypher statement to query a graph database. Use only the provided relationship types and properties in the schema. Schema: Node properties: - **Movie**   - `url`: STRING Example: "https://themoviedb.org/movie/86
+   C: MATCH (a:Actor)-[:ACTED_IN]->(m:Movie)-[:IN_GENRE]->(g:Genre {name: 'Comedy'}) RETURN DISTINCT a.name
+4. Q: Generate Cypher statement to query a graph database. Use only the provided relationship types and properties in the schema. Schema: {"Book": {"count": 10, "labels": [], "properties": {"Book_ID": {"unique": false, "indexe
+   C: MATCH (book:Book), (publication:Publication) where publication.Book_ID =  book.Book_ID return book.Title as Title, publication.Publication_Date as publicationDate
+5. Q: Generate Cypher statement to query a graph database. Use only the provided relationship types and properties in the schema. Schema: {"ASSIGNED_TO": {"count": 27, "properties": {}, "type": "relationship"}, "Machine": {"co
+   C: MATCH (t:Technician) WHERE t.Age = 36 OR t.Age = 37 RETURN t.Name
+6. Q: Generate Cypher statement to query a graph database. Use only the provided relationship types and properties in the schema. Schema: Graph schema: Relevant node labels and their properties (with datatypes) are: Journal {j
+   C: MATCH (n:Journal) WHERE n.journal_id STARTS WITH 'f76' RETURN n
+7. Q: Generate Cypher statement to query a graph database. Use only the provided relationship types and properties in the schema. Schema: Graph schema: Relevant node labels and their properties (with datatypes) are: Journal {n
+   C: MATCH path=(:Journal {name:'Geom. Topol'})-->() RETURN path
+8. Q: Generate Cypher statement to query a graph database. Use only the provided relationship types and properties in the schema. Schema: Node properties: - **Movie**   - `title`: STRING Example: "The Matrix"   - `votes`: INTE
+   C: MATCH (m:Movie) WHERE m.released >= 2000 AND m.released < 2010 RETURN avg(m.votes) AS average_votes
+9. Q: Generate Cypher statement to query a graph database. Use only the provided relationship types and properties in the schema. Schema: Node properties: - **Question**   - `link`: STRING Example: "https://stackoverflow.com/q
+   C: MATCH (q:Question) WHERE q.answer_count > 2 RETURN q ORDER BY q.creation_date LIMIT 3
+
+## Diversity Counters
+- rows: 150
+- collect: 13
+- optional_match: 26
+- with_where: 26
+- match_3_plus: 13
+- era_pre_90s: 3
+- era_90s: 6
+- era_2000s: 3
+- era_2010s: 2
+- era_2020s: 6
+- limit_5: 16
+- limit_10: 41
+- limit_15: 29
+- limit_20: 25
+- limit_25: 11
+- limit_30: 18
+
+## Category Counts
+- artist: 50
+- playlist: 24
+- era: 20
+- language: 16
+- genre: 12
+- lyrics: 12
+- single: 9
+- album: 6
+- optional: 1
+
+## Accepted Samples
+1. Question: Which 20 artists appear most in playlist Fun music?
+   Cypher: MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Fun music'}) MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC, total_plays DESC LIMIT 20
+2. Question: For 070 Shake, collect up to five distinct featured artists ordered by collaboration frequency.
+   Cypher: MATCH (t:Track)-[:BY]->(a:Artist {name: '070 Shake'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH a, f, count(t) AS c WHERE f IS NOT NULL ORDER BY c DESC RETURN a.name AS artist, collect(f.name)[0..5] AS top_featured
+3. Question: In language code fi, who are the top 5 artists by total plays?
+   Cypher: MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'fi' RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS tracks ORDER BY total_plays DESC LIMIT 5
+
+## Discarded Pairs
+- none

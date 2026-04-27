@@ -1,5 +1,5 @@
 """
-training/translation_eval.py
+training/evaluation/translation_eval.py
 
 T013: Translation-based evaluation (GLEU) on all eval.jsonl rows.
 No database required — runs on cloud or locally.
@@ -8,8 +8,8 @@ Runs two passes: adapter and baseline (base model without adapter).
 Writes training/outputs/translation_report.json.
 
 Usage:
-    python training/translation_eval.py --checkpoint training/outputs/final_adapter
-    python training/translation_eval.py --checkpoint danp27/qwen3.5-9b-nl2cypher-lora
+    python training/evaluation/translation_eval.py --checkpoint training/outputs/final_adapter
+    python training/evaluation/translation_eval.py --checkpoint danp27/qwen3.5-9b-nl2cypher-lora
 """
 
 import unsloth  # must be first — patches torch/transformers at import time
@@ -26,14 +26,16 @@ from nltk.translate.gleu_score import sentence_gleu
 from tqdm import tqdm
 
 from dotenv import load_dotenv
-load_dotenv()
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+load_dotenv(dotenv_path=ROOT_DIR / ".env")
 
 from peft import PeftModel
 from unsloth import FastLanguageModel
 from unsloth.chat_templates import get_chat_template
 
-EVAL_DATA = Path("training/data/eval.jsonl")
-OUTPUT_DIR = Path("training/outputs")
+EVAL_DATA = ROOT_DIR / "training" / "data" / "eval.jsonl"
+OUTPUT_DIR = ROOT_DIR / "training" / "outputs"
 BASE_MODEL = "Qwen/Qwen3.5-9B"
 MAX_SEQ_LEN = 1600
 
@@ -52,55 +54,68 @@ def extract_question(user_content: str) -> str:
 
 
 PREVIEW_ROWS = 3  # print first N examples per pass so you can sanity-check early
+EVAL_BATCH_SIZE = 4
 
 
 def run_pass(model, tokenizer, rows, label: str) -> list[dict]:
     results = []
-    for i, row in enumerate(tqdm(rows, desc=label)):
-        convos = row["conversations"]
-        messages = [convos[0], convos[1]]
-        reference = convos[2]["content"]
+    tokenizer.padding_side = "left"
 
-        text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        encoded = tokenizer(text=text, return_tensors="pt")
-        input_ids = encoded["input_ids"].to("cuda")
-        attention_mask = encoded["attention_mask"].to("cuda")
+    for batch_start in tqdm(range(0, len(rows), EVAL_BATCH_SIZE), desc=label):
+        batch = rows[batch_start : batch_start + EVAL_BATCH_SIZE]
+
+        texts, references, convos_list = [], [], []
+        for row in batch:
+            convos = row["conversations"]
+            text = tokenizer.apply_chat_template(
+                [convos[0], convos[1]], tokenize=False, add_generation_prompt=True
+            )
+            texts.append(text)
+            references.append(convos[2]["content"])
+            convos_list.append(convos)
+
+        encoded = tokenizer(text=texts, return_tensors="pt", padding=True).to("cuda")
+        input_len = encoded["input_ids"].shape[1]
+
         with torch.no_grad():
             outputs = model.generate(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
+                **encoded,
                 max_new_tokens=256,
                 use_cache=True,
                 eos_token_id=tokenizer.eos_token_id,
             )
-        predicted = tokenizer.decode(outputs[0][input_ids.shape[1]:], skip_special_tokens=True).strip()
-        predicted = strip_fences(predicted)
 
-        gleu = float(sentence_gleu([reference.lower().split()], predicted.lower().split()))
+        for i, (row, convos, reference) in enumerate(zip(batch, convos_list, references)):
+            predicted = tokenizer.decode(outputs[i][input_len:], skip_special_tokens=True).strip()
+            predicted = strip_fences(predicted)
+            gleu = float(sentence_gleu([reference.lower().split()], predicted.lower().split()))
 
-        if i < PREVIEW_ROWS:
-            tqdm.write(f"\n[{label} sample {i+1}]")
-            tqdm.write(f"  Q:    {extract_question(convos[1]['content'])}")
-            tqdm.write(f"  Ref:  {reference}")
-            tqdm.write(f"  Pred: {predicted}")
-            tqdm.write(f"  GLEU: {gleu:.3f}")
+            global_i = batch_start + i
+            if global_i < PREVIEW_ROWS:
+                tqdm.write(f"\n[{label} sample {global_i+1}]")
+                tqdm.write(f"  Q:    {extract_question(convos[1]['content'])}")
+                tqdm.write(f"  Ref:  {reference}")
+                tqdm.write(f"  Pred: {predicted}")
+                tqdm.write(f"  GLEU: {gleu:.3f}")
 
-        results.append({
-            "question": extract_question(convos[1]["content"]),
-            "reference_cypher": reference,
-            "predicted_cypher": predicted,
-            "gleu": gleu,
-            "source": row.get("source", "external"),
-        })
+            results.append({
+                "question": extract_question(convos[1]["content"]),
+                "reference_cypher": reference,
+                "predicted_cypher": predicted,
+                "gleu": gleu,
+                "source": row.get("source", "external"),
+            })
+
     return results
 
 
-def main():
+def main(checkpoint: str | None = None):
     nltk.download("punkt_tab", quiet=True)
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint", required=True, help="Local adapter path or HF repo ID")
-    args = parser.parse_args()
+    if checkpoint is None:
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--checkpoint", required=True, help="Local adapter path or HF repo ID")
+        checkpoint = parser.parse_args().checkpoint
 
     rows = [json.loads(l) for l in EVAL_DATA.read_text().splitlines() if l.strip()]
     print(f"Eval rows: {len(rows)}")
@@ -123,8 +138,8 @@ def main():
     print(f"Baseline mean GLEU: {baseline_mean_gleu:.4f}")
 
     # --- Attach adapter and run adapter pass ---
-    print(f"\nAttaching adapter: {args.checkpoint}")
-    model = PeftModel.from_pretrained(model, args.checkpoint)
+    print(f"\nAttaching adapter: {checkpoint}")
+    model = PeftModel.from_pretrained(model, checkpoint)
     FastLanguageModel.for_inference(model)
     adapter_results = run_pass(model, tokenizer, rows, label="adapter")
     mean_gleu = sum(r["gleu"] for r in adapter_results) / len(adapter_results)
@@ -135,7 +150,7 @@ def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     report = {
         "run_id": str(uuid.uuid4()),
-        "checkpoint": args.checkpoint,
+        "checkpoint": checkpoint,
         "n_translation": len(rows),
         "mean_gleu": mean_gleu,
         "baseline": {"mean_gleu": baseline_mean_gleu},

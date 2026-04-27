@@ -27,7 +27,10 @@ SYSTEM_PROMPT = (
     "Do not include any text except the generated Cypher statement."
 )
 
-TUNEMAP_VALIDATED = Path("training/data/cypher_dataset_validated.jsonl")
+TUNEMAP_VALIDATED_CANDIDATES = [
+  Path("training/data/cyper_validated_dataset.jsonl"),
+  Path("training/data/cypher_dataset_validated.jsonl"),
+]
 TRAIN_OUT = Path("training/data/train.jsonl")
 EVAL_OUT = Path("training/data/eval.jsonl")
 SEED = 3407
@@ -61,8 +64,9 @@ def main():
     log.info(f"External: {len(train_rows)} train, {len(eval_rows)} eval")
 
     # T004 gate: add TuneMap benchmark rows to eval only (domain benchmark — never in training)
-    if TUNEMAP_VALIDATED.exists():
-        tunemap_all = [json.loads(l) for l in TUNEMAP_VALIDATED.read_text().splitlines() if l.strip()]
+    tunemap_path = next((p for p in TUNEMAP_VALIDATED_CANDIDATES if p.exists()), None)
+    if tunemap_path is not None:
+        tunemap_all = [json.loads(l) for l in tunemap_path.read_text().splitlines() if l.strip()]
 
         # generate_dataset.py puts schema in system prompt and bare question in user turn.
         # Reformat to standard 3-turn chatml: user turn includes schema + "Cypher output:".
@@ -144,9 +148,9 @@ The relationships:
 
         tunemap_eval = [reformat_tunemap(r) for r in tunemap_all]
         eval_rows.extend(tunemap_eval)
-        log.info(f"TuneMap benchmark: +{len(tunemap_eval)} rows → eval only")
+        log.info(f"TuneMap benchmark: +{len(tunemap_eval)} rows from {tunemap_path} → eval only")
     else:
-        log.info("TuneMap benchmark: cypher_dataset_validated.jsonl not found, skipping")
+        log.info("TuneMap benchmark: no validated dataset file found, skipping")
 
     random.seed(SEED)
     random.shuffle(train_rows)

@@ -1,13 +1,13 @@
 """
-training/execution_eval.py
+training/evaluation/execution_eval.py
 
 T014: TuneMap execution eval on source="tunemap" rows.
 Runs EXPLAIN (syntax check) + result-set exact match against local Neo4j.
 Writes training/outputs/execution_report.json.
 
 Usage:
-    python training/execution_eval.py --checkpoint training/outputs/final_adapter
-    python training/execution_eval.py --checkpoint danp27/qwen3.5-9b-nl2cypher-lora
+    python training/evaluation/execution_eval.py --checkpoint training/outputs/final_adapter
+    python training/evaluation/execution_eval.py --checkpoint danp27/qwen3.5-9b-nl2cypher-lora
 """
 
 import unsloth  # must be first — patches torch/transformers at import time
@@ -29,14 +29,16 @@ from tqdm import tqdm
 logging.getLogger("neo4j.notifications").setLevel(logging.ERROR)
 
 from dotenv import load_dotenv
-load_dotenv()
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+load_dotenv(dotenv_path=ROOT_DIR / ".env")
 
 from peft import PeftModel
 from unsloth import FastLanguageModel
 from unsloth.chat_templates import get_chat_template
 
-EVAL_DATA   = Path("training/data/eval.jsonl")
-OUTPUT_DIR  = Path("training/outputs")
+EVAL_DATA   = ROOT_DIR / "training" / "data" / "eval.jsonl"
+OUTPUT_DIR  = ROOT_DIR / "training" / "outputs"
 BASE_MODEL  = "Qwen/Qwen3.5-9B"
 MAX_SEQ_LEN = 1600
 PREVIEW_ROWS = 3
