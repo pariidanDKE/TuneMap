@@ -11,27 +11,29 @@
 
 A developer needs a curated collection of (natural language question, TuneMap schema context,
 expected Cypher query) examples that cover all node types, relationship patterns, and the known
-Cypher constraint rules of the TuneMap graph, so that fine-tuning has clean, representative
-signal.
+Cypher constraint rules of the TuneMap graph, so that there is a clean domain-specific benchmark
+to evaluate the adapter against — and so that the external training set is correctly formatted
+and ready for fine-tuning.
 
-**Why this priority**: Without a high-quality dataset there is nothing to fine-tune on. Every
-downstream story depends on this.
+**Why this priority**: Without a validated domain benchmark and a formatted training set there
+is nothing to train on or measure against. Every downstream story depends on this.
 
-**Independent Test**: The dataset file can be loaded and spot-checked — every example contains
-a question, a schema block, and a Cypher query. A random sample of 20 Cyphers executes against
-a test graph instance without syntax errors.
+**Independent Test**: Both dataset files load cleanly. The TuneMap benchmark contains ≥100
+validated examples; every example has a question, a schema block, and a Cypher query that
+executes without syntax errors against the live TuneMap graph.
 
 **Acceptance Scenarios**:
 
 1. **Given** no prior dataset exists, **When** the dataset pipeline runs, **Then** it produces
-   ≥200 (question, schema, Cypher) examples spanning all 10 node types and all 12 relationship
-   types defined in the TuneMap schema.
-2. **Given** the full dataset, **When** any random sample of 20 Cypher queries is executed
-   against a populated test graph, **Then** all 20 complete without syntax errors.
-3. **Given** the full dataset, **When** it is finalised, **Then** at least 20% of examples are
-   held out as an evaluation split, separate from the training split.
-4. **Given** the dataset, **When** it is reviewed, **Then** no example contains a Cypher
-   pattern that violates the documented schema rules (e.g., implicit GROUP BY, cartesian
+   ≥100 validated (question, schema, Cypher) TuneMap examples spanning all 10 node types and
+   all 12 relationship types defined in the TuneMap schema, used exclusively as a domain
+   benchmark (evaluation only — no TuneMap rows in the training split).
+2. **Given** the TuneMap benchmark, **When** any random sample of 20 Cypher queries is executed
+   against a populated TuneMap graph, **Then** all 20 complete without syntax errors.
+3. **Given** the external dataset, **When** it is finalised, **Then** the built-in held-out test
+   split (4,833 rows) is used as the primary evaluation split, separate from the training split.
+4. **Given** the dataset, **When** it is reviewed, **Then** no TuneMap benchmark example contains
+   a Cypher pattern that violates the documented schema rules (e.g., implicit GROUP BY, cartesian
    products, property-access RETURN for graph visualisation queries).
 
 ---
@@ -70,12 +72,12 @@ that it is clear whether fine-tuning produced a measurable improvement.
 **Why this priority**: Confirms whether the adapter is worth using before any integration work.
 
 **Independent Test**: The evaluation script runs end-to-end on the eval split and produces a
-metrics report with at least: Cypher syntax validity rate and query execution success rate.
+metrics report with at least: GLEU on all eval rows and TuneMap syntax validity rate.
 
 **Acceptance Scenarios**:
 
 1. **Given** an adapter checkpoint and the held-out eval split, **When** the evaluation script
-   runs, **Then** it produces a report showing syntax error rate and execution success rate for
+   runs, **Then** it produces a report showing GLEU score and TuneMap syntax validity rate for
    both the fine-tuned adapter and the baseline model.
 2. **Given** the evaluation report, **When** adapter and baseline are compared, **Then** the
    adapter achieves a lower Cypher syntax error rate on TuneMap-specific questions.
@@ -103,18 +105,21 @@ metrics report with at least: Cypher syntax validity rate and query execution su
 - **FR-002**: The dataset MUST include examples that exercise each documented Cypher constraint
   rule: no implicit GROUP BY, no cartesian products, correct string-quote delimiters, bare-variable
   RETURN for graph visualisation patterns.
-- **FR-003**: The dataset MUST be partitioned into a training split and a held-out evaluation
-  split (≥20% eval) before any fine-tuning run.
+- **FR-003**: The training split MUST use only the external dataset (neo4j/text2cypher-2024v1
+  train split, ~39K rows). The TuneMap-specific examples MUST be held out entirely as a
+  domain benchmark evaluation set — no TuneMap rows may appear in the training split.
 - **FR-004**: Fine-tuning MUST produce a LoRA adapter checkpoint stored in a portable format
   that can be loaded without re-running training.
 - **FR-005**: The adapter MUST be compatible with the serving format used by the existing
   TuneMap vLLM inference pipeline so it can be loaded without infrastructure changes.
 - **FR-006**: Fine-tuning MUST support checkpoint resumption if the run is interrupted.
-- **FR-007**: The evaluation pipeline MUST apply translation-based evaluation (generated Cypher
-  vs. reference Cypher, text comparison) across both dataset splits. For the TuneMap-specific
-  split it MUST additionally apply execution-based evaluation: the query is run against the
-  live graph, the model produces a natural language response from the result, and that response
-  is compared against a labelled reference answer.
+- **FR-007**: The evaluation pipeline MUST be split into two independent scripts.
+  `translation_eval.py` applies translation-based evaluation (GLEU) across all held-out eval
+  rows (4,833) and writes `translation_report.json`. `execution_eval.py` applies
+  execution-based evaluation against the live TuneMap AuraDB instance for rows tagged
+  `source="tunemap"` (~120 rows) — syntax validation via `EXPLAIN` and Exact Match on result
+  sets — and writes `execution_report.json`. No execution eval is performed against external
+  database references. Both scripts accept a `--checkpoint` arg and include a baseline pass.
 - **FR-008**: All code, datasets, checkpoints, and evaluation outputs MUST reside exclusively
   within `training/`. No file outside `training/` may be created or modified.
 
@@ -157,18 +162,19 @@ metrics report with at least: Cypher syntax validity rate and query execution su
 
 ## Open Questions
 
-Training data uses an existing external NL-to-Cypher dataset as the primary source, augmented
-with a small TuneMap-specific set (~100 rows) generated by an existing `generate_datasets.py`
-script. The TuneMap-specific examples serve as a domain-adaptation "end phase" to ensure the
-adapter learns the exact schema, node types, and Cypher constraint rules of this graph.
+Training uses only the external NL-to-Cypher dataset (neo4j/text2cypher-2024v1, ~39K rows).
+The TuneMap-specific examples (~120 validated rows, generated by `generate_datasets.py`) are
+held out entirely as a domain benchmark — they are never mixed into the training split. At
+~120 rows they are too few to provide meaningful training signal, but they are a near-perfect
+representative test set for the target domain: real questions, real schema, validated Cypher,
+executable against the live graph.
 
-Evaluation uses two complementary strategies depending on which dataset split is being assessed:
+Evaluation uses two complementary strategies:
 
-- **Pre-existing external dataset** — translation-based evaluation only. Generated Cypher
-  queries are compared against reference Cypher queries on textual content (the external KG
-  is not available for live execution, so no execution-based check is possible here).
+- **External held-out split (4,833 rows)** — translation-based evaluation only (GLEU).
+  Generated Cypher is compared against reference Cypher on textual content; the external KG
+  is not available for live execution.
 
-- **TuneMap-specific dataset** — both translation-based and execution-based evaluation.
-  Queries are executed against the live TuneMap Neo4j graph; the model reads the result and
-  produces a natural language response, which is then compared against a labelled reference
-  response. This allows quality to be assessed end-to-end, not just at the Cypher level.
+- **TuneMap domain benchmark (~120 rows)** — both translation-based (GLEU) and
+  execution-based evaluation (Exact Match on result sets against the live TuneMap Neo4j graph).
+  This is the definitive quality signal for the target use case.

@@ -43,7 +43,7 @@
 
 - [x] T003 [US1] Implement download and chatml formatting in `training/prepare_data.py`: load `neo4j/text2cypher-2024v1` train split (39,554 rows) via `datasets`, format each row as a 3-turn conversation using the full system prompt from the paper (Table 3) and user turn ending with `Cypher output:`. Retain `database_reference` and `source` fields alongside `conversations`.
 
-- [x] T004 [US1] Add TuneMap merge logic to `training/prepare_data.py`: if `training/data/cypher_dataset_validated.jsonl` exists (gate from T002), load it and append rows to the train set (targeting 90/10 train/eval split from TuneMap data). If file absent, skip silently with a log line. Merge external + TuneMap rows, shuffle with `seed=3407`.
+- [x] T004 [US1] Add TuneMap benchmark logic to `training/prepare_data.py`: if `training/data/cypher_dataset_validated.jsonl` exists (gate from T002), load ALL rows and append to the eval set only (no train split — TuneMap rows are a domain benchmark, not training data). If file absent, skip silently with a log line. Note: prepare_data.py was originally written with a 90/10 TuneMap train/eval split; train.py corrects this by filtering `source="tunemap"` rows from training — prepare_data.py should be updated to match (all TuneMap rows → eval only).
 
 - [x] T005 [US1] Add split and write logic to `training/prepare_data.py`: write the shuffled merged set to `training/data/train.jsonl` and the external `test` split (4,833 rows, with `database_reference` retained) to `training/data/eval.jsonl`. Print row counts on completion.
 
@@ -85,43 +85,41 @@
 
 ## Phase 5: User Story 3 — Evaluation (Priority: P3)
 
-**Goal**: Produce `training/outputs/eval_report.json` comparing adapter vs. baseline on translation-based (GLEU, 4,833 examples) and execution-based (Exact Match on result sets, ~2,471 examples) metrics. Confirm adapter outperforms baseline on TuneMap-specific questions.
+**Goal**: Produce `training/outputs/translation_report.json` (GLEU, 4,833 rows) and `training/outputs/execution_report.json` (TuneMap execution eval, ~120 rows) comparing adapter vs. baseline. Confirm adapter outperforms baseline on TuneMap-specific questions.
 
-**Independent Test**: `training/outputs/eval_report.json` exists. Contains `mean_gleu`, `exec_exact_match_pct`, and a `baseline` section with the same metrics. Report shows adapter syntax validity ≥90% on TuneMap-specific questions (SC-001) and lower syntax error rate than baseline (SC-002).
+**Independent Test**: Both report files exist and contain adapter + baseline metric blocks. `translation_report.json` has `mean_gleu`. `execution_report.json` has `tunemap_syntax_valid_pct` ≥90% (SC-001) and higher than baseline (SC-002).
 
 ### Implementation
 
-- [ ] T013 [US3] Implement Pass 1 (translation-based) in `training/eval.py`: load adapter checkpoint + base model, load `training/data/eval.jsonl`, for each example generate Cypher (greedy decode, `max_new_tokens=256`), strip markdown fences, compute `sentence_gleu` from `nltk.translate.gleu_score`. Aggregate `mean_gleu` over all 4,833 rows. Store `per_example` list with question, reference_cypher, predicted_cypher, gleu.
+- [ ] T013 [US3] Implement `training/translation_eval.py`: load adapter checkpoint + base model, load `training/data/eval.jsonl`, for each example generate Cypher (greedy decode, `max_new_tokens=256`, `eos_token_id` set), strip markdown fences, compute `sentence_gleu`. Aggregate `mean_gleu` over all 4,833 rows. Re-run with base model only for baseline. Write `training/outputs/translation_report.json`: `{run_id, checkpoint, n_translation, mean_gleu, baseline: {mean_gleu}, per_example: [...], failures: [10 worst]}`. Accept `--checkpoint` arg (local path or HF repo ID).
 
-- [ ] T014 [US3] Implement Pass 2 (execution-based) in `training/eval.py`: filter eval rows to those where `database_reference` is non-null (~2,471 rows), execute both generated Cypher and reference Cypher against the target Neo4j database (routed by `database_reference` field), convert both result sets to `str(sorted(str(r) for r in results))`, compute `exec_exact_match`. Aggregate `exec_exact_match_pct`.
+- [ ] T014 [US3] Implement `training/execution_eval.py`: filter eval rows to `source="tunemap"` (~120 rows), generate Cypher (same pattern as T013), run `EXPLAIN <cypher>` against AuraDB via neo4j driver (`NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` from `.env`), execute both generated and reference Cypher, compare `str(sorted(str(r) for r in results))`. Track `tunemap_syntax_valid_pct` and `tunemap_exec_exact_match_pct`. Re-run with base model for baseline. Write `training/outputs/execution_report.json`: `{run_id, checkpoint, n_tunemap, tunemap_syntax_valid_pct, tunemap_exec_exact_match_pct, baseline: {...}, per_example: [...], failures: [...]}`. Accept `--checkpoint` arg.
 
-- [ ] T015 [US3] Add TuneMap-specific syntax validation to `training/eval.py`: for eval rows tagged `source="tunemap"`, run generated Cypher via `EXPLAIN` against the live TuneMap Neo4j graph. Track `tunemap_syntax_valid_pct` as an additional metric in the report.
+- [ ] T015 [US3] Write `training/cloud_setup.sh`: (1) `pip install -r training/requirements.txt`, (2) `python training/prepare_data.py`, (3) `python training/translation_eval.py --checkpoint danp27/qwen3.5-9b-nl2cypher-lora`, (4) `python training/execution_eval.py --checkpoint danp27/qwen3.5-9b-nl2cypher-lora`. Requires `HF_TOKEN` + `NEO4J_*` (AuraDB) in env.
 
-- [ ] T016 [US3] Add baseline comparison to `training/eval.py`: re-run Pass 1 and Pass 2 with the base model loaded without the adapter. Write both adapter and baseline metric blocks to `training/outputs/eval_report.json`. Schema: `{run_id, checkpoint, n_translation, n_execution, mean_gleu, exec_exact_match_pct, tunemap_syntax_valid_pct, baseline: {mean_gleu, exec_exact_match_pct, tunemap_syntax_valid_pct}, per_example: [...], failures: [...]}`.
+- [ ] T016 [US3] Run both eval scripts. Verify both report files produced. Confirm SC-001 (`tunemap_syntax_valid_pct` ≥90%) and SC-002 (adapter metrics higher than baseline). Record results.
 
-- [ ] T017 [US3] Run `python training/eval.py --checkpoint training/outputs/final_adapter`. Verify report is produced. Confirm SC-001 (≥90% syntax valid on TuneMap subset) and SC-002 (adapter `mean_gleu` and `exec_exact_match_pct` higher than baseline). Record results.
-
-**Checkpoint**: User Story 3 complete — eval report exists with both adapter and baseline metrics.
+**Checkpoint**: User Story 3 complete — both report files exist with adapter and baseline metrics.
 
 ---
 
 ## Phase 6: Cloud Execution (Priority: P2.5 — required before eval can run)
 
-**Context**: Local GPU is occupied for the week. Eval must run on Colab (first attempt) or Vast.ai (fallback if Colab OOMs — Qwen3.5-9B needs ~22GB VRAM, likely too tight for a free T4). The eval scripts themselves are cloud-agnostic; this phase handles the upload and remote setup needed to run them.
+**Context**: Local GPU is occupied for the week. Both eval scripts are cloud-agnostic and load the adapter directly from HF Hub. TuneMap execution eval requires AuraDB credentials (`NEO4J_*`) in the cloud env — AuraDB is being set up alongside this work.
 
 - [x] T021 Upload fine-tuned adapter and TuneMap dataset to HuggingFace Hub via `training/upload_to_hub.py`. Adapter repo: `danp27/qwen3.5-9b-nl2cypher-lora` (464MB). Dataset repo: `danp27/tunemap-cypher-dataset` (120 rows). Both private. Set `HF_TOKEN` in `.env` before running — no CLI login required.
 
-- [ ] T022 Write `training/cloud_setup.sh`: shell script that installs deps, pulls the adapter from HF, and launches eval. Steps: (1) `pip install -r training/requirements.txt`, (2) `python training/prepare_data.py` (regenerates `eval.jsonl` — TuneMap gate will be CLOSED on cloud, external data only), (3) `python training/eval.py --checkpoint danp27/qwen3.5-9b-nl2cypher-lora`. The adapter can be loaded directly from HF Hub by passing the HF repo ID as checkpoint path — no manual download needed.
+- [ ] T022 (→ covered by T015) `training/cloud_setup.sh` written as part of US3 implementation.
 
-- [ ] T023 Run eval on Colab or Vast.ai: clone repo, set `HF_TOKEN` in env, run `bash training/cloud_setup.sh`. If Colab OOMs: rent RTX 3090/A100 on Vast.ai (PyTorch template, CUDA 12.x). Monitor VRAM at model load — Qwen3.5-9B bf16 needs ~18GB.
+- [ ] T023 Run eval on Colab or Vast.ai: clone repo, set `HF_TOKEN` + `NEO4J_*` (AuraDB) in env, run `bash training/cloud_setup.sh`. If Colab OOMs: rent RTX 3090/A100 on Vast.ai (PyTorch template, CUDA 12.x). Monitor VRAM at model load — Qwen3.5-9B bf16 needs ~18GB. Pull both report files back to local repo.
 
-**Checkpoint**: `training/outputs/eval_report.json` produced on remote instance, pulled back to local repo.
+**Checkpoint**: `translation_report.json` and `execution_report.json` produced on remote instance, pulled back to local repo.
 
 ---
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T018 Verify full pipeline runs end-to-end from scratch: `prepare_data.py` → `train.py` → `eval.py` with no manual steps in between. Document the single entry-point invocation in a comment block at the top of each script (SC-003).
+- [ ] T018 Verify full pipeline runs end-to-end from scratch: `prepare_data.py` → `train.py` → `translation_eval.py` + `execution_eval.py` with no manual steps in between. Document the single entry-point invocation in a comment block at the top of each script (SC-003).
 
 - [ ] T019 Confirm constitution compliance — audit all created files are within `training/`: run `find . -newer training/requirements.txt -not -path "./training/*" -not -path "./.git/*"` and confirm empty output (FR-008).
 
@@ -145,7 +143,7 @@
 
 - T003 → T004 → T005 → T006 (sequential within US1, same file)
 - T007 → T008 → T009 → T010 → T011 → T012 (sequential within US2, same file)
-- T013 → T014 → T015 → T016 → T017 (sequential within US3, same file)
+- T013 → T014 → T015 → T016 (sequential within US3; T013 and T014 are separate files but T015 depends on both)
 
 ### Parallel Opportunities
 

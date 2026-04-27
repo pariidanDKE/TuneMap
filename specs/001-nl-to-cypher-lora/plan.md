@@ -231,12 +231,13 @@ The `Cypher output:` suffix on the user turn primes the model to emit only the q
 ### Data Pipeline (prepare_data.py)
 
 1. Load `neo4j/text2cypher-2024v1` train split (39,554 rows)
-2. Load TuneMap-specific data from `training/data/cypher_dataset.jsonl` (if validated; skip otherwise)
-3. Format each row → 3-turn chatml conversation
-4. Merge: external train + TuneMap-specific train rows
-5. Shuffle with fixed seed (3407)
-6. Write `training/data/train.jsonl`
-7. Write `training/data/eval.jsonl` from external `test` split (4,833 rows) — TuneMap-specific examples added to eval only after validation
+2. Format each row → 3-turn chatml conversation
+3. Shuffle with fixed seed (3407)
+4. Write `training/data/train.jsonl` (external rows only — no TuneMap rows in training)
+5. Write `training/data/eval.jsonl` from external `test` split (4,833 rows)
+6. If `training/data/cypher_dataset_validated.jsonl` exists, load all rows (100% eval — no train split) and append to `eval.jsonl` as the TuneMap domain benchmark
+
+**TuneMap data role**: The ~120 validated rows from `generate_dataset.py` are a domain benchmark — too few for meaningful training signal but a near-perfect representative test set. All rows go to eval; none to train.
 
 ### Evaluation Script (eval.py)
 
@@ -248,18 +249,20 @@ The `Cypher output:` suffix on the user turn primes the model to emit only the q
 5. Compute `sentence_gleu` per example
 6. Report: mean GLEU, 10 worst-GLEU failures
 
-**Pass 2 — Execution-based (~2,471 examples)**:
-7. Filter eval.jsonl to rows where `database_reference` is non-null
-8. For each: execute generated Cypher and reference Cypher against the target Neo4j database (routed via `database_reference`)
-9. Convert both result sets to lexicographically-ordered string representations
+**Pass 2 — TuneMap execution eval (~120 examples)** — `training/execution_eval.py`:
+7. Filter eval.jsonl to rows where `source="tunemap"`
+8. For each: run generated Cypher via `EXPLAIN` against AuraDB (syntax check)
+9. Execute both generated and reference Cypher, convert result sets to lexicographically-ordered string representations
 10. Compute Exact Match on those strings
-11. Report: execution exact-match %
+11. Report: `tunemap_syntax_valid_pct`, `tunemap_exec_exact_match_pct`
 
-**Combined output** → `training/outputs/eval_report.json`:
-- `mean_gleu` (translation pass, n=4,833)
-- `exec_exact_match_pct` (execution pass, n=~2,471)
-- `per_example` records with both metrics where applicable
-- Re-run on TuneMap-specific eval subset separately when available
+No execution eval against external `database_reference` rows — external KG not available.
+AuraDB connection: `NEO4J_URI` / `NEO4J_USER` / `NEO4J_PASSWORD` from `.env`.
+
+**Separate outputs**:
+- `training/outputs/translation_report.json` — `mean_gleu` (n=4,833) + baseline
+- `training/outputs/execution_report.json` — `tunemap_syntax_valid_pct`, `tunemap_exec_exact_match_pct` (n=~120) + baseline
+- Both scripts accept `--checkpoint` (local path or HF repo ID)
 
 ---
 

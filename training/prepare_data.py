@@ -60,27 +60,67 @@ def main():
     eval_rows = [format_external_row(r) for r in ds["test"]]
     log.info(f"External: {len(train_rows)} train, {len(eval_rows)} eval")
 
-    # T004 gate: merge TuneMap data if validated file exists
+    # T004 gate: add TuneMap benchmark rows to eval only (domain benchmark — never in training)
     if TUNEMAP_VALIDATED.exists():
         tunemap_all = [json.loads(l) for l in TUNEMAP_VALIDATED.read_text().splitlines() if l.strip()]
-        random.seed(SEED)
-        random.shuffle(tunemap_all)
-        split = max(1, int(len(tunemap_all) * 0.9))
-        tunemap_train = tunemap_all[:split]
-        tunemap_eval = tunemap_all[split:]
 
-        # Reformat TuneMap rows into standard chatml structure.
         # generate_dataset.py puts schema in system prompt and bare question in user turn.
-        # We need the standard 3-turn format: user turn must include schema + "Cypher output:".
-        tunemap_schema = (
-            "Node types: Track, Artist, Album, Single, Genre, Era, Playlist, Mood, Topic, Place. "
-            "Relationships: (Track)-[:BY]->(Artist), (Track)-[:FEATURES]->(Artist), "
-            "(Track)-[:ON]->(Album), (Track)-[:IS_SINGLE]->(Single), (Track)-[:IN_GENRE]->(Genre), "
-            "(Track)-[:IN_ERA]->(Era), (Track)-[:IN_PLAYLIST]->(Playlist), "
-            "(Track)-[:HAS_MOOD]->(Mood), (Track)-[:HAS_TOPIC]->(Topic), "
-            "(Track)-[:MENTIONS_PLACE]->(Place), (Album)-[:BY]->(Artist), "
-            "(Artist)-[:IN_GENRE {track_count}]->(Genre)."
-        )
+        # Reformat to standard 3-turn chatml: user turn includes schema + "Cypher output:".
+        # Schema format matches neo4j/text2cypher-2024v1 exactly so the model sees familiar context.
+        tunemap_schema = """\
+Node properties:
+- **Track**
+  - `name`: STRING Example: "The Wolf"
+  - `year`: INTEGER Min: 1945, Max: 2026
+  - `release_date`: STRING Example: "2015-03-01"
+  - `duration_ms`: INTEGER Min: 9814, Max: 2069780
+  - `play_count`: INTEGER Min: 0, Max: 93
+  - `skip_count`: INTEGER Min: 0, Max: 22
+  - `loved`: BOOLEAN
+  - `explicit`: BOOLEAN
+  - `date_added`: STRING Example: "2021-06-15"
+  - `track_number`: INTEGER
+  - `language`: STRING Available options: ['en', 'ru', 'es', 'fr', 'de', 'ja', 'pt', 'it', 'ko', 'ro', 'uk', 'id', 'tl', 'hr', 'fi', 'af', 'so', 'lt', 'nl', 'unknown']
+  - `lyrics_found`: BOOLEAN
+  - `unique_words`: INTEGER
+  - `total_words`: INTEGER
+  - `type_token_ratio`: FLOAT
+  - `repetition_rate`: FLOAT
+- **Artist**
+  - `name`: STRING Example: "Billy Talent"
+- **Album**
+  - `title`: STRING Example: "The Slim Shady LP"
+  - `year`: INTEGER Min: 1945, Max: 2026
+- **Single**
+  - `name`: STRING Example: "Fresh Outta London"
+- **Genre**
+  - `name`: STRING Example: "Alternative"
+- **Era**
+  - `name`: STRING Available options: ['Pre-90s', '90s', '2000s', '2010s', '2020s']
+- **Playlist**
+  - `name`: STRING Available options: ['Billy Talent Essentials', 'Chill', 'Eminem Essentials', 'Fun music', 'My Shazam Tracks', 'Replay 2019', 'Replay 2020']
+- **Mood**
+  - `name`: STRING Example: "introspective"
+- **Topic**
+  - `name`: STRING Example: "alienation"
+- **Place**
+  - `name`: STRING Example: "new york"
+Relationship properties:
+- **IN_GENRE**
+  - `track_count: INTEGER`
+The relationships:
+(:Track)-[:BY]->(:Artist)
+(:Track)-[:FEATURES]->(:Artist)
+(:Track)-[:ON]->(:Album)
+(:Track)-[:IS_SINGLE]->(:Single)
+(:Track)-[:IN_GENRE]->(:Genre)
+(:Track)-[:IN_ERA]->(:Era)
+(:Track)-[:IN_PLAYLIST]->(:Playlist)
+(:Track)-[:HAS_MOOD]->(:Mood)
+(:Track)-[:HAS_TOPIC]->(:Topic)
+(:Track)-[:MENTIONS_PLACE]->(:Place)
+(:Album)-[:BY]->(:Artist)
+(:Artist)-[:IN_GENRE {track_count}]->(:Genre)"""
 
         def reformat_tunemap(row: dict) -> dict:
             msgs = row["messages"]
@@ -102,14 +142,11 @@ def main():
                 "database_reference": None,
             }
 
-        tunemap_train = [reformat_tunemap(r) for r in tunemap_train]
-        tunemap_eval = [reformat_tunemap(r) for r in tunemap_eval]
-
-        train_rows.extend(tunemap_train)
+        tunemap_eval = [reformat_tunemap(r) for r in tunemap_all]
         eval_rows.extend(tunemap_eval)
-        log.info(f"TuneMap gate OPEN: +{len(tunemap_train)} train, +{len(tunemap_eval)} eval")
+        log.info(f"TuneMap benchmark: +{len(tunemap_eval)} rows → eval only")
     else:
-        log.info("TuneMap gate CLOSED: cypher_dataset_validated.jsonl not found, skipping")
+        log.info("TuneMap benchmark: cypher_dataset_validated.jsonl not found, skipping")
 
     random.seed(SEED)
     random.shuffle(train_rows)
