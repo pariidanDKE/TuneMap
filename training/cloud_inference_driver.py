@@ -9,6 +9,11 @@
 # Download results from your local terminal:
 #   scp -P <port> root@<ip>:/root/AppleMusciKG/training/outputs/translation_report.json .
 
+
+# EXECUTE THIS : scp -P 55636 root@79.112.108.70:/root/AppleMusciKG/training/outputs/translation_report.json .
+
+
+
 import argparse
 import json
 import os
