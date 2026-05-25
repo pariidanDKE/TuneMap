@@ -34,6 +34,8 @@ services:
       - NEO4J_PASSWORD=${NEO4J_PASSWORD}
       - VLLM_BASE_URL=http://host.docker.internal:8000/v1
       - VLLM_MODEL=qwen3.5-9b-awq
+      - VLLM_AGENT_MODEL=${VLLM_AGENT_MODEL:-qwen3.5-9b-awq}
+      - VLLM_CYPHER_MODEL=${VLLM_CYPHER_MODEL:-qwen3.5-9b-nl2cypher-lora}
     volumes:
       - ./Data:/app/Data
 

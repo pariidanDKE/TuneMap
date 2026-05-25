@@ -620,7 +620,7 @@ def show_main_app():
 
     if ask and question.strip():
 
-        QUERY_TIMEOUT = 120  # seconds
+        QUERY_TIMEOUT = 180  # seconds
 
         if mode == "Simple":
             engine = get_engine()

@@ -42,9 +42,9 @@ Whilst the data from Apple Music is quite rich with skip and play counts, genres
 
 
 
-## Archiecture:
+## Architecture
 
-<img src="Images/tunemap_a2a.png" alt="Flow" width="750"/>
+![TuneMap architecture overview](Images/tunemap_architecture.png)
 
 
 ---
@@ -122,6 +122,8 @@ NEO4J_PASSWORD=your_password
 # vLLM (local native or Docker)
 VLLM_BASE_URL=http://localhost:8000/v1
 VLLM_MODEL=qwen3.5-9b-awq
+VLLM_AGENT_MODEL=qwen3.5-9b-awq
+VLLM_CYPHER_MODEL=qwen3.5-9b-nl2cypher-lora
 
 # OpenAI (alternative to vLLM)
 # LLM_PROVIDER=openai
@@ -139,6 +141,9 @@ See `.env.example` for the full reference including all vLLM Docker options.
 vllm serve QuantTrio/Qwen3.5-9B-AWQ \
   --served-model-name qwen3.5-9b-awq \
   --quantization awq_marlin \
+  --enable-lora \
+  --max-lora-rank 64 \
+  --lora-modules qwen3.5-9b-nl2cypher-lora=danp27/qwen3.5-9b-nl2cypher-lora \
   --enable-auto-tool-choice \
   --tool-call-parser qwen3_coder \
   --reasoning-parser qwen3 \
@@ -147,7 +152,26 @@ vllm serve QuantTrio/Qwen3.5-9B-AWQ \
   --port 8000
 ```
 
-Any OpenAI-compatible endpoint works — swap in a different model by updating `VLLM_MODEL` in `.env`.
+This serves two request-selectable model IDs from one vLLM instance:
+
+- `qwen3.5-9b-awq` — base model for the top-level agent
+- `qwen3.5-9b-nl2cypher-lora` — LoRA adapter for Cypher generation
+
+Set your app env like this:
+
+```env
+VLLM_BASE_URL=http://localhost:8000/v1
+VLLM_AGENT_MODEL=qwen3.5-9b-awq
+VLLM_CYPHER_MODEL=qwen3.5-9b-nl2cypher-lora
+```
+
+The app now routes:
+
+- agent orchestration calls to `VLLM_AGENT_MODEL`
+- `music_kg_query` Cypher generation to `VLLM_CYPHER_MODEL`
+- graph-render Cypher generation to `VLLM_CYPHER_MODEL`
+
+Any OpenAI-compatible endpoint works — swap in different served model IDs by updating these env vars.
 
 ---
 

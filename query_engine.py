@@ -25,6 +25,8 @@ NEO4J_USER     = os.getenv("NEO4J_USER",     "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
 VLLM_BASE_URL  = os.getenv("VLLM_BASE_URL",  "http://localhost:8000/v1")
 VLLM_MODEL     = os.getenv("VLLM_MODEL",     "qwen3.5-9b-awq")
+VLLM_AGENT_MODEL = os.getenv("VLLM_AGENT_MODEL", VLLM_MODEL)
+VLLM_CYPHER_MODEL = os.getenv("VLLM_CYPHER_MODEL", VLLM_AGENT_MODEL)
 
 # ── Schema prompt ─────────────────────────────────────────────────────────────
 # Teaches the LLM the exact graph schema so it generates correct Cypher.
@@ -375,7 +377,7 @@ def _wrap_with_self_healing(retriever, llm, graph_store):
 
 # ── Build engine ──────────────────────────────────────────────────────────────
 
-def build_engine():
+def build_engine(model: str | None = None):
     from llama_index.graph_stores.neo4j import Neo4jPropertyGraphStore
     from llama_index.core import PropertyGraphIndex, Settings
     from llama_index.core.query_engine import RetrieverQueryEngine
@@ -390,9 +392,11 @@ def build_engine():
         url=NEO4J_URI,
     )
 
-    print(f"Connecting to vLLM at {VLLM_BASE_URL} ...")
+    llm_model = model or VLLM_CYPHER_MODEL
+
+    print(f"Connecting to vLLM at {VLLM_BASE_URL} with cypher model {llm_model} ...")
     llm = OpenAILike(
-        model=VLLM_MODEL,
+        model=llm_model,
         api_base=VLLM_BASE_URL,
         api_key="not-needed",          # vLLM doesn't require a key
         is_chat_model=True,
@@ -435,6 +439,14 @@ def build_engine():
         llm=llm,
     )
 
+    original_query = query_engine.query
+
+    def logged_query(question: str):
+        print(f"[cypher_engine] using model {llm_model} for question: {question}", flush=True)
+        return original_query(question)
+
+    query_engine.query = logged_query
+
     return query_engine
 
 
@@ -442,7 +454,7 @@ def build_engine():
 
 AGENT_SYSTEM_PROMPT = (
     "You are a music taste analyst for a personal Apple Music library stored as a Knowledge Graph. "
-    "Answer the user's question by calling music_kg_query multiple times with specific, focused questions, "
+    "Answer the user's question by calling music_kg_query with precise, efficient questions, "
     "then synthesise a comprehensive answer. Always query the graph — never answer from memory.\n\n"
     "The graph contains the following queryable dimensions:\n"
     "- Genres and play counts\n"
@@ -461,6 +473,8 @@ AGENT_SYSTEM_PROMPT = (
     "IMPORTANT RULES:\n"
     "- Always add LIMIT to every query — never fetch more than 60 records at a time.\n"
     "- Keep your responses concise — do not over-explain, do not repeat data you already have.\n"
+    "- Prefer one broad aggregate query over many narrow queries when the user asks for a breakdown, ranking, comparison, count by category, or summary.\n"
+    "- Example: if the user asks 'How many tracks do I have per era?', make one query for the full era breakdown, not five separate queries for Pre-90s, 90s, 2000s, 2010s, and 2020s.\n"
     "- Make at most 6 targeted queries then synthesise — do not loop excessively.\n"
     "- Call render_graph at most once. You MUST call it if the user's message contains words like 'graph', 'visualize', 'visualise', 'render', 'show', or 'map'. Otherwise call it only if a visualisation genuinely adds value."
 )
@@ -620,13 +634,20 @@ def _has_graph_return(cypher: str) -> bool:
     return not re.search(r'\w+\.\w+|\w+\s*\(', return_clause)
 
 
-def build_agent(engine=None, max_steps: int = 8):
+def build_agent(
+    engine=None,
+    max_steps: int = 5,
+    agent_model: str | None = None,
+):
     from openai import OpenAI as OpenAIClient
+
+    agent_model = agent_model or VLLM_AGENT_MODEL
 
     if engine is None:
         engine = build_engine()
 
     client = OpenAIClient(base_url=VLLM_BASE_URL, api_key="not-needed")
+    print(f"Building agent with model {agent_model} ...")
 
     _VIZ_USER_SUFFIX = (
         "\n\nCRITICAL: your RETURN clause must contain ONLY bare node and relationship "
@@ -635,13 +656,14 @@ def build_agent(engine=None, max_steps: int = 8):
     )
 
     def viz_worker(description: str) -> str:
+        print(f"[viz_worker] using model {VLLM_CYPHER_MODEL}", flush=True)
         user_msg = f"Generate a neovis.js visualisation Cypher for: {description}{_VIZ_USER_SUFFIX}"
         messages = [
             {"role": "system", "content": VIZ_WORKER_PROMPT},
             {"role": "user",   "content": user_msg},
         ]
         _llm_kwargs = dict(
-            model=VLLM_MODEL,
+            model=VLLM_CYPHER_MODEL,
             temperature=0.0,
             max_tokens=4096,
             extra_body={"chat_template_kwargs": {"enable_thinking": False}},
@@ -688,8 +710,9 @@ def build_agent(engine=None, max_steps: int = 8):
                     "content": "You have gathered enough data. Now synthesise a comprehensive answer based on everything you have found so far.",
                 })
 
+            print(f"[agent] using model {agent_model}", flush=True)
             response = client.chat.completions.create(
-                model=VLLM_MODEL,
+                model=agent_model,
                 messages=messages,
                 **({"tools": tools_param} if tools_param else {}),
                 temperature=0.0,
