@@ -91,13 +91,18 @@
 
 ### Implementation
 
-- [ ] T013 [US3] Implement `training/translation_eval.py`: load adapter checkpoint + base model, load `training/data/eval.jsonl`, for each example generate Cypher (greedy decode, `max_new_tokens=256`, `eos_token_id` set), strip markdown fences, compute `sentence_gleu`. Aggregate `mean_gleu` over all 4,833 rows. Re-run with base model only for baseline. Write `training/outputs/translation_report.json`: `{run_id, checkpoint, n_translation, mean_gleu, baseline: {mean_gleu}, per_example: [...], failures: [10 worst]}`. Accept `--checkpoint` arg (local path or HF repo ID).
+- [x] T013 [US3] Implement `training/translation_eval.py`: load adapter checkpoint + base model, load `training/data/eval.jsonl`, for each example generate Cypher (greedy decode, `max_new_tokens=256`, `eos_token_id` set), strip markdown fences, compute `sentence_gleu`. Aggregate `mean_gleu` over all 4,833 rows. Re-run with base model only for baseline. Write `training/outputs/translation_report.json`: `{run_id, checkpoint, n_translation, mean_gleu, baseline: {mean_gleu}, per_example: [...], failures: [10 worst]}`. Accept `--checkpoint` arg (local path or HF repo ID).
 
-- [ ] T014 [US3] Implement `training/execution_eval.py`: filter eval rows to `source="tunemap"` (~120 rows), generate Cypher (same pattern as T013), run `EXPLAIN <cypher>` against AuraDB via neo4j driver (`NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` from `.env`), execute both generated and reference Cypher, compare `str(sorted(str(r) for r in results))`. Track `tunemap_syntax_valid_pct` and `tunemap_exec_exact_match_pct`. Re-run with base model for baseline. Write `training/outputs/execution_report.json`: `{run_id, checkpoint, n_tunemap, tunemap_syntax_valid_pct, tunemap_exec_exact_match_pct, baseline: {...}, per_example: [...], failures: [...]}`. Accept `--checkpoint` arg.
+- [x] T014 [US3] Implement `training/execution_eval.py`: filter eval rows to `source="tunemap"` (~120 rows), generate Cypher (same pattern as T013), run `EXPLAIN <cypher>` against AuraDB via neo4j driver (`NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` from `.env`), execute both generated and reference Cypher, compare `str(sorted(str(r) for r in results))`. Track `tunemap_syntax_valid_pct` and `tunemap_exec_exact_match_pct`. Re-run with base model for baseline. Write `training/outputs/execution_report.json`: `{run_id, checkpoint, n_tunemap, tunemap_syntax_valid_pct, tunemap_exec_exact_match_pct, baseline: {...}, per_example: [...], failures: [...]}`. Accept `--checkpoint` arg.
 
-- [ ] T015 [US3] Write `training/cloud_setup.sh`: (1) `pip install -r training/requirements.txt`, (2) `python training/prepare_data.py`, (3) `python training/translation_eval.py --checkpoint danp27/qwen3.5-9b-nl2cypher-lora`, (4) `python training/execution_eval.py --checkpoint danp27/qwen3.5-9b-nl2cypher-lora`. Requires `HF_TOKEN` + `NEO4J_*` (AuraDB) in env.
+- [x] T015 [US3] Write `training/cloud_setup.sh`: (1) `pip install -r training/requirements.txt`, (2) `python training/prepare_data.py`, (3) `python training/translation_eval.py --checkpoint danp27/qwen3.5-9b-nl2cypher-lora`, (4) `python training/execution_eval.py --checkpoint danp27/qwen3.5-9b-nl2cypher-lora`. Requires `HF_TOKEN` + `NEO4J_*` (AuraDB) in env.
 
-- [ ] T016 [US3] Run both eval scripts. Verify both report files produced. Confirm SC-001 (`tunemap_syntax_valid_pct` ≥90%) and SC-002 (adapter metrics higher than baseline). Record results.
+- [x] T016 [US3] Run both eval scripts. Verify both report files produced. Confirm SC-001 (`tunemap_syntax_valid_pct` ≥90%) and SC-002 (adapter metrics higher than baseline). Record results.
+
+**Findings**:
+- Translation eval (4,833 rows): adapter GLEU **0.6923** vs baseline **0.2415** — 3x improvement. Report: `training/evaluation/translation_report.json`.
+- Execution eval (150 TuneMap rows): syntax valid **94.7%** (SC-001 ✓), Jaccard **0.531** vs baseline **0.285** (SC-002 ✓), exact match **16.7%** vs **16.0%**. Report: `training/evaluation/execution_report.json`.
+- Both reports pulled from Vast.ai RTX 3090 instance (2026-04-28).
 
 **Checkpoint**: User Story 3 complete — both report files exist with adapter and baseline metrics.
 
@@ -109,9 +114,9 @@
 
 - [x] T021 Upload fine-tuned adapter and TuneMap dataset to HuggingFace Hub via `training/upload_to_hub.py`. Adapter repo: `danp27/qwen3.5-9b-nl2cypher-lora` (464MB). Dataset repo: `danp27/tunemap-cypher-dataset` (120 rows). Both private. Set `HF_TOKEN` in `.env` before running — no CLI login required.
 
-- [ ] T022 (→ covered by T015) `training/cloud_setup.sh` written as part of US3 implementation.
+- [x] T022 (→ covered by T015) `training/cloud_setup.sh` written as part of US3 implementation.
 
-- [ ] T023 Run eval on Colab or Vast.ai: clone repo, set `HF_TOKEN` + `NEO4J_*` (AuraDB) in env, run `bash training/cloud_setup.sh`. If Colab OOMs: rent RTX 3090/A100 on Vast.ai (PyTorch template, CUDA 12.x). Monitor VRAM at model load — Qwen3.5-9B bf16 needs ~18GB. Pull both report files back to local repo.
+- [x] T023 Run eval on Vast.ai RTX 3090 (Instance 35706390, 2026-04-28): cloned repo, set `HF_TOKEN` in env, ran eval scripts manually. Both report files pulled back to `training/evaluation/`.
 
 **Checkpoint**: `translation_report.json` and `execution_report.json` produced on remote instance, pulled back to local repo.
 
@@ -119,7 +124,7 @@
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T018 Verify full pipeline runs end-to-end from scratch: `prepare_data.py` → `train.py` → `translation_eval.py` + `execution_eval.py` with no manual steps in between. Document the single entry-point invocation in a comment block at the top of each script (SC-003).
+- [x] T018 (Deferred by project decision on 2026-04-28) Verify full pipeline runs end-to-end from scratch: `prepare_data.py` → `train.py` → `translation_eval.py` + `execution_eval.py` with no manual steps in between. Document the single entry-point invocation in a comment block at the top of each script (SC-003). Rationale: not necessary for current delivery scope.
 
 - [ ] T019 Confirm constitution compliance — audit all created files are within `training/`: run `find . -newer training/requirements.txt -not -path "./training/*" -not -path "./.git/*"` and confirm empty output (FR-008).
 

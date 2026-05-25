@@ -36,7 +36,10 @@ UPLOAD_DATASET = True           # TuneMap validated Cypher dataset (120 rows)
 
 ADAPTER_DIR = Path("training/outputs/final_adapter")
 MERGED_DIR  = Path("training/outputs/merged_16bit")
-DATASET_FILE = Path("training/data/cypher_dataset_validated.jsonl")
+DATASET_FILE_CANDIDATES = [
+    Path("training/data/cypher_dataset_validated.jsonl"),
+    Path("training/data/cyper_validated_dataset.jsonl"),
+]
 
 api = HfApi()
 
@@ -75,6 +78,13 @@ if UPLOAD_MERGED:
 if UPLOAD_DATASET:
     print(f"Creating dataset repo {DATASET_REPO} ...")
     api.create_repo(repo_id=DATASET_REPO, repo_type="dataset", private=PRIVATE, exist_ok=True)
+
+    DATASET_FILE = next((p for p in DATASET_FILE_CANDIDATES if p.exists()), None)
+    if DATASET_FILE is None:
+        raise FileNotFoundError(
+            "Unable to find a validated dataset file. Checked: "
+            + ", ".join(str(p) for p in DATASET_FILE_CANDIDATES)
+        )
 
     print(f"Loading {DATASET_FILE} ...")
     dataset = load_dataset("json", data_files=str(DATASET_FILE), split="train")
