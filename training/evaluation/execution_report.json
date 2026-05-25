@@ -1,0 +1,1281 @@
+{
+  "run_id": "82faff9b-b696-485c-a242-d8f08927840c",
+  "checkpoint": "training/outputs/final_adapter",
+  "n_tunemap": 150,
+  "tunemap_syntax_valid_pct": 0.9466666666666667,
+  "tunemap_exec_exact_match_pct": 0.16666666666666666,
+  "tunemap_mean_jaccard": 0.5305372065283203,
+  "baseline": {
+    "tunemap_syntax_valid_pct": 0.7933333333333333,
+    "tunemap_exec_exact_match_pct": 0.16,
+    "tunemap_mean_jaccard": 0.2848234599168505
+  },
+  "per_example": [
+    {
+      "question": "In language code af, who are the top 5 artists by total plays?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'af' RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS tracks ORDER BY total_plays DESC LIMIT 5",
+      "predicted_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'af' RETURN a.name AS artist, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 5",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 1.0
+    },
+    {
+      "question": "In genre Dance, which artists have the most loved tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'Dance'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.loved = true RETURN a.name AS artist, count(t) AS loved_tracks, sum(t.play_count) AS total_plays ORDER BY loved_tracks DESC, total_plays DESC LIMIT 15",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'Dance'}) WHERE t.loved = true WITH g, t, count(t) AS loved_tracks ORDER BY loved_tracks DESC RETURN g.name AS genre, t.artist_name AS artist, loved_tracks",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.2
+    },
+    {
+      "question": "List up to 5 collaborators featured on tracks by $uicideboy$.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '$uicideboy$'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH t, f WHERE f IS NOT NULL RETURN f.name AS featured_artist, count(t) AS collaborations ORDER BY collaborations DESC LIMIT 5",
+      "predicted_cypher": "MATCH (t:Track)-[:FEATURES]->(a:Artist) WHERE t.name = 'uicideboy' RETURN a.name AS collaborator LIMIT 5",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "Which 30 artists have the most total plays in the 2020s era?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2020s'}) MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS track_count ORDER BY total_plays DESC LIMIT 30",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2020s'}) MATCH (t)-[:BY]->(a:Artist) WITH a, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 30 RETURN a.name AS artist, total_plays",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.75
+    },
+    {
+      "question": "List up to 25 collaborators featured on tracks by 2 Chainz.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '2 Chainz'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH t, f WHERE f IS NOT NULL RETURN f.name AS featured_artist, count(t) AS collaborations ORDER BY collaborations DESC LIMIT 25",
+      "predicted_cypher": "MATCH (a:Artist {name: '2 Chainz'})<-[:FEATURES]-(t:Track)-[:BY]->(c:Artist) RETURN c.name AS collaborator, count(t) AS track_count ORDER BY track_count DESC LIMIT 25",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.25
+    },
+    {
+      "question": "For playlist Replay 2019, collect up to five unique genres for each artist.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Replay 2019'}) MATCH (t)-[:BY]->(a:Artist) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN a.name AS artist, collect(DISTINCT g.name)[0..5] AS genres, count(DISTINCT t) AS tracks ORDER BY tracks DESC LIMIT 15",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Replay 2019'})-[:IN_PLAYLIST]->(t:Track)-[:IN_GENRE]->(g:Genre) WITH t.artist AS artist, collect(DISTINCT g.name) AS genres RETURN artist.name AS artistName, collect(g.name) AS genres LIMIT 5",
+      "syntax_valid": false,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "In genre Electronic, which artists have the most loved tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'Electronic'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.loved = true RETURN a.name AS artist, count(t) AS loved_tracks, sum(t.play_count) AS total_plays ORDER BY loved_tracks DESC, total_plays DESC LIMIT 15",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'Electronic'}) WHERE t.loved = true WITH g, t, count(t) AS loved_tracks ORDER BY loved_tracks DESC RETURN g.name AS genre, t.artist.name AS artist, loved_tracks",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "Which 20 artists appear most in playlist Billy Talent Essentials?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Billy Talent Essentials'}) MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC, total_plays DESC LIMIT 20",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Billy Talent Essentials'})-[:IN_PLAYLIST]->(t:Track)-[:BY]->(a:Artist) RETURN a.name, count(t) AS track_count ORDER BY track_count DESC LIMIT 20",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "What are the top 10 most played tracks by 3OH!3?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '3OH!3'}) RETURN t.name AS track, t.play_count AS plays, t.skip_count AS skips ORDER BY plays DESC LIMIT 10",
+      "predicted_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '3OH!3'}) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 1.0
+    },
+    {
+      "question": "For playlist Eminem Essentials, what are the top 20 genres by track count?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Eminem Essentials'}) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(t) AS tracks ORDER BY tracks DESC LIMIT 20",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Eminem Essentials'})<-[:IN_PLAYLIST]-(t:Track)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, sum(t.track_count) AS track_count ORDER BY track_count DESC LIMIT 20",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.3333333333333333
+    },
+    {
+      "question": "For A$AP Ferg, which genres have the most tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: 'A$AP Ferg'}) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: \"A$AP Ferg\"})-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, sum(g.track_count) AS track_count ORDER BY track_count DESC",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.25
+    },
+    {
+      "question": "Show the top 5 most played tracks from the 90s era.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '90s'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.play_count > 0 RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 5",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '90s'}) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 5",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6428571428571429
+    },
+    {
+      "question": "List up to 5 collaborators featured on tracks by 6LACK.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '6LACK'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH t, f WHERE f IS NOT NULL RETURN f.name AS featured_artist, count(t) AS collaborations ORDER BY collaborations DESC LIMIT 5",
+      "predicted_cypher": "MATCH (a:Artist {name: '6LACK'})-[:FEATURES]->(t:Track)-[:BY]->(collaborator:Artist) RETURN DISTINCT collaborator.name LIMIT 5",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "Which 20 artists appear most in playlist Fun music?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Fun music'}) MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC, total_plays DESC LIMIT 20",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Fun music'})<-[:IN_PLAYLIST]-(t:Track)-[:BY]->(a:Artist) RETURN a.name, count(t) AS track_count ORDER BY track_count DESC LIMIT 20",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.5952380952380952
+    },
+    {
+      "question": "Show the top 20 most played tracks from the 2020s era.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2020s'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.play_count > 0 RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 20",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2020s'}) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 20",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6226415094339622
+    },
+    {
+      "question": "For language code fr, show tracks with high repetition rate and at least 50 total words.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'fr' AND t.total_words >= 50 AND t.repetition_rate IS NOT NULL RETURN t.name AS track, a.name AS artist, t.repetition_rate AS repetition_rate ORDER BY repetition_rate DESC LIMIT 15",
+      "predicted_cypher": "MATCH (t:Track) WHERE t.language = 'fr' AND t.repetition_rate > 0.5 AND t.total_words >= 50 RETURN t.name, t.repetition_rate, t.total_words",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.4375
+    },
+    {
+      "question": "Show the top 10 most played tracks from the 2020s era.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2020s'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.play_count > 0 RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 10",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2020s'}) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6785714285714286
+    },
+    {
+      "question": "For single release 100 Ways, list up to 15 related tracks and artists.",
+      "reference_cypher": "MATCH (t:Track)-[:IS_SINGLE]->(s:Single {name: '100 Ways'}) MATCH (t)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 15",
+      "predicted_cypher": "MATCH (s:Single {name: '100 Ways'})<-[:IS_SINGLE]-(t:Track)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist LIMIT 15",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "Show the top 15 most played tracks from the 90s era.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '90s'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.play_count > 0 RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 15",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '90s'}) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 15",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.5789473684210527
+    },
+    {
+      "question": "For 2 Chainz, which genres have the most tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '2 Chainz'}) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: '2 Chainz'})-[:IN_GENRE {track_count: trackCount}]->(g:Genre) RETURN g.name AS genre, trackCount ORDER BY trackCount DESC LIMIT 1",
+      "syntax_valid": false,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "Show up to 5 tracks from album 0372 sorted by play count.",
+      "reference_cypher": "MATCH (t:Track)-[:ON]->(al:Album {title: '0372'}) MATCH (t)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 5",
+      "predicted_cypher": "MATCH (t:Track)-[:ON]->(a:Album {title: '0372'}) RETURN t.name AS track_name, t.play_count AS play_count ORDER BY t.play_count DESC LIMIT 5",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "List up to 10 collaborators featured on tracks by 24kGoldn.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '24kGoldn'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH t, f WHERE f IS NOT NULL RETURN f.name AS featured_artist, count(t) AS collaborations ORDER BY collaborations DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: '24kGoldn'})-[:FEATURES]->(t:Track)-[:BY]->(collaborator:Artist) RETURN DISTINCT collaborator.name LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "Which 15 artists appear most in playlist Replay 2019?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Replay 2019'}) MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC, total_plays DESC LIMIT 15",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Replay 2019'})<-[:IN_PLAYLIST]-(t:Track)-[:BY]->(a:Artist) RETURN a.name, count(t) AS track_count ORDER BY track_count DESC LIMIT 15",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.5142857142857142
+    },
+    {
+      "question": "For language code id, show tracks with high repetition rate and at least 50 total words.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'id' AND t.total_words >= 50 AND t.repetition_rate IS NOT NULL RETURN t.name AS track, a.name AS artist, t.repetition_rate AS repetition_rate ORDER BY repetition_rate DESC LIMIT 15",
+      "predicted_cypher": "MATCH (t:Track) WHERE t.language = 'id' AND t.repetition_rate > 0.5 AND t.total_words >= 50 RETURN t.name AS track_name, t.repetition_rate AS repetition_rate, t.total_words AS total_words",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.5
+    },
+    {
+      "question": "For playlist Replay 2020, what are the top 10 genres by track count?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Replay 2020'}) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(t) AS tracks ORDER BY tracks DESC LIMIT 10",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Replay 2020'})<-[:IN_PLAYLIST]-(t:Track)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, sum(t.track_count) AS track_count ORDER BY track_count DESC LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.47368421052631576
+    },
+    {
+      "question": "Which 20 most played tracks mention 142nd in the lyrics?",
+      "reference_cypher": "MATCH (t:Track)-[:MENTIONS_PLACE]->(pl:Place {name: '142nd'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.lyrics_found = true RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 20",
+      "predicted_cypher": "MATCH (t:Track) WHERE t.lyrics_found = true AND t.unique_words >= 142 RETURN t.name, t.play_count ORDER BY t.play_count DESC LIMIT 20",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "In playlist Replay 2020, list up to 10 tracks with their genre and era.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Replay 2020'}) MATCH (t)-[:IN_GENRE]->(g:Genre) MATCH (t)-[:IN_ERA]->(e:Era) RETURN t.name AS track, g.name AS genre, e.name AS era ORDER BY t.play_count DESC LIMIT 10",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Replay 2020'})<-[:IN_PLAYLIST]-(t:Track)-[:IN_GENRE]->(g:Genre), (t)-[:IN_ERA]->(e:Era) RETURN t.name AS track, g.name AS genre, e.name AS era LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.2
+    },
+    {
+      "question": "In language code id, who are the top 10 artists by total plays?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'id' RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS tracks ORDER BY total_plays DESC LIMIT 10",
+      "predicted_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'id' RETURN a.name AS artist, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "For 104, which genres have the most tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '104'}) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC LIMIT 10",
+      "predicted_cypher": "MATCH (t:Track)-[r:IN_GENRE]->(g:Genre) WHERE t.play_count = 104 RETURN g.name, count(t) AS track_count ORDER BY track_count DESC LIMIT 1",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "In language code it, who are the top 20 artists by total plays?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'it' RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS tracks ORDER BY total_plays DESC LIMIT 20",
+      "predicted_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'it' RETURN a.name AS artist, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 20",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.75
+    },
+    {
+      "question": "In language code fi, who are the top 5 artists by total plays?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'fi' RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS tracks ORDER BY total_plays DESC LIMIT 5",
+      "predicted_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'fi' RETURN a.name AS artist, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 5",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 1.0
+    },
+    {
+      "question": "Show up to 25 tracks from album 1989 sorted by play count.",
+      "reference_cypher": "MATCH (t:Track)-[:ON]->(al:Album {title: '1989'}) MATCH (t)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 25",
+      "predicted_cypher": "MATCH (a:Album {title: \"1989\"})<-[:ON]-(t:Track) RETURN t.name AS track_name, t.play_count AS play_count ORDER BY t.play_count DESC LIMIT 25",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "For single release ARSXNIST!, list up to 5 related tracks and artists.",
+      "reference_cypher": "MATCH (t:Track)-[:IS_SINGLE]->(s:Single {name: 'ARSXNIST!'}) MATCH (t)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 5",
+      "predicted_cypher": "MATCH (s:Single {name: 'ARSXNIST'})<-[:IS_SINGLE]-(t:Track)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist LIMIT 5",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "In genre Adult Contemporary, which artists have the most loved tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'Adult Contemporary'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.loved = true RETURN a.name AS artist, count(t) AS loved_tracks, sum(t.play_count) AS total_plays ORDER BY loved_tracks DESC, total_plays DESC LIMIT 15",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'Adult Contemporary'}) WHERE t.loved = true WITH g, t, count(t) AS loved_tracks ORDER BY loved_tracks DESC RETURN g.name AS genre, t.artist.name AS artist, loved_tracks",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "Which 10 artists have the most total plays in the 2020s era?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2020s'}) MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS track_count ORDER BY total_plays DESC LIMIT 10",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2020s'}) MATCH (t)-[:BY]->(a:Artist) WITH a, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 10 RETURN a.name AS artist, total_plays",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.7407407407407407
+    },
+    {
+      "question": "For playlist Replay 2020, what are the top 15 genres by track count?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Replay 2020'}) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(t) AS tracks ORDER BY tracks DESC LIMIT 15",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Replay 2020'})<-[:IN_PLAYLIST]-(t:Track)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, sum(t.track_count) AS track_count ORDER BY track_count DESC LIMIT 15",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6190476190476191
+    },
+    {
+      "question": "In language code ja, who are the top 10 artists by total plays?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'ja' RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS tracks ORDER BY total_plays DESC LIMIT 10",
+      "predicted_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'ja' RETURN a.name AS artist, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 1.0
+    },
+    {
+      "question": "For 5'nizza, which genres have the most tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '5\\'nizza'}) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: '5'nizza'})-[:IN_GENRE {track_count: trackCount}]->(g:Genre) RETURN g.name AS genre, trackCount ORDER BY trackCount DESC LIMIT 1",
+      "syntax_valid": false,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "Show up to 30 tracks from album 25 Years of Disco-Pop sorted by play count.",
+      "reference_cypher": "MATCH (t:Track)-[:ON]->(al:Album {title: '25 Years of Disco-Pop'}) MATCH (t)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 30",
+      "predicted_cypher": "MATCH (a:Album {title: \"25 Years of Disco-Pop\"})<-[:ON]-(t:Track) RETURN t.name AS track_name, t.play_count AS play_count ORDER BY t.play_count DESC LIMIT 30",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "List up to 25 collaborators featured on tracks by Aaron Smith.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: 'Aaron Smith'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH t, f WHERE f IS NOT NULL RETURN f.name AS featured_artist, count(t) AS collaborations ORDER BY collaborations DESC LIMIT 25",
+      "predicted_cypher": "MATCH (a:Artist {name: 'Aaron Smith'})-[:FEATURES]->(t:Track)-[:BY]->(collaborator:Artist) RETURN DISTINCT collaborator.name AS Collaborator LIMIT 25",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "Which 10 artists have the most total plays in the 90s era?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '90s'}) MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS track_count ORDER BY total_plays DESC LIMIT 10",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '90s'}) MATCH (t)-[:BY]->(a:Artist) WITH a, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 10 RETURN a.name AS artist, total_plays",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.7307692307692307
+    },
+    {
+      "question": "In language code fr, who are the top 5 artists by total plays?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'fr' RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS tracks ORDER BY total_plays DESC LIMIT 5",
+      "predicted_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'fr' RETURN a.name AS artist, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 5",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.8333333333333334
+    },
+    {
+      "question": "In language code fr, who are the top 20 artists by total plays?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'fr' RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS tracks ORDER BY total_plays DESC LIMIT 20",
+      "predicted_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'fr' RETURN a.name AS artist, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 20",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.875
+    },
+    {
+      "question": "For single release Arya, list up to 20 related tracks and artists.",
+      "reference_cypher": "MATCH (t:Track)-[:IS_SINGLE]->(s:Single {name: 'Arya'}) MATCH (t)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 20",
+      "predicted_cypher": "MATCH (s:Single {name: 'Arya'})-[:IS_SINGLE]->(t:Track)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist LIMIT 20",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "In genre British Invasion, which artists have the most loved tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'British Invasion'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.loved = true RETURN a.name AS artist, count(t) AS loved_tracks, sum(t.play_count) AS total_plays ORDER BY loved_tracks DESC, total_plays DESC LIMIT 15",
+      "predicted_cypher": "MATCH (a:Artist)-[:IN_GENRE]->(g:Genre {name: 'British Invasion'}) MATCH (a)<-[:BY]-(t:Track) WHERE t.loved = true WITH a, count(t) AS loved_tracks ORDER BY loved_tracks DESC RETURN a.name AS artist, loved_tracks",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "For 6 Day Riot, collect up to five distinct featured artists ordered by collaboration frequency.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '6 Day Riot'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH a, f, count(t) AS c WHERE f IS NOT NULL ORDER BY c DESC RETURN a.name AS artist, collect(f.name)[0..5] AS top_featured",
+      "predicted_cypher": "MATCH (t:Track)-[:FEATURES]->(a:Artist) WHERE t.name = \"6 Day Riot\" RETURN a.name AS artist, COUNT(t) AS collaboration_count ORDER BY collaboration_count DESC LIMIT 5",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "What are the top 10 most played tracks by AJR?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: 'AJR'}) RETURN t.name AS track, t.play_count AS plays, t.skip_count AS skips ORDER BY plays DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: 'AJR'})<-[:BY]-(t:Track) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.8
+    },
+    {
+      "question": "For 3OH!3, which genres have the most tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '3OH!3'}) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: '3OH!3'})-[:IN_GENRE {track_count: trackCount}]->(g:Genre) RETURN g.name AS genre, trackCount ORDER BY trackCount DESC LIMIT 1",
+      "syntax_valid": false,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "Which 15 most played tracks mention african american in the lyrics?",
+      "reference_cypher": "MATCH (t:Track)-[:MENTIONS_PLACE]->(pl:Place {name: 'african american'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.lyrics_found = true RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 15",
+      "predicted_cypher": "MATCH (t:Track)-[:MENTIONS_PLACE]->(p:Place) WHERE p.name = 'african american' RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 15",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "Which 20 tracks mention topic freedom with the highest type-token ratio?",
+      "reference_cypher": "MATCH (t:Track)-[:HAS_TOPIC]->(tp:Topic {name: 'freedom'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.lyrics_found = true AND t.type_token_ratio IS NOT NULL RETURN t.name AS track, a.name AS artist, t.type_token_ratio AS ttr ORDER BY ttr DESC LIMIT 20",
+      "predicted_cypher": "MATCH (t:Track)-[:HAS_TOPIC]->(topic:Topic {name: 'freedom'}) RETURN t.name AS track_name, t.type_token_ratio AS type_token_ratio ORDER BY t.type_token_ratio DESC LIMIT 20",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6792452830188679
+    },
+    {
+      "question": "For A Boogie wit da Hoodie, collect up to five distinct featured artists ordered by collaboration frequency.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: 'A Boogie wit da Hoodie'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH a, f, count(t) AS c WHERE f IS NOT NULL ORDER BY c DESC RETURN a.name AS artist, collect(f.name)[0..5] AS top_featured",
+      "predicted_cypher": "MATCH (a:Artist {name: 'A Boogie wit da Hoodie'})-[:FEATURES]->(fa:Artist) RETURN fa.name AS FeaturedArtist, COUNT(*) AS CollaborationCount ORDER BY CollaborationCount DESC LIMIT 5",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "Show 30 tracks tagged with mood introspective and their play counts.",
+      "reference_cypher": "MATCH (t:Track)-[:HAS_MOOD]->(m:Mood {name: 'introspective'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.lyrics_found = true RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 30",
+      "predicted_cypher": "MATCH (t:Track)-[:HAS_MOOD]->(m:Mood {name: 'introspective'}) RETURN t.name AS track_name, t.play_count AS play_count LIMIT 30",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.02564102564102564
+    },
+    {
+      "question": "Show the top 30 most played tracks from the Pre-90s era.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: 'Pre-90s'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.play_count > 0 RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 30",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: 'Pre-90s'}) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 30",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.5797101449275363
+    },
+    {
+      "question": "In language code id, who are the top 20 artists by total plays?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'id' RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS tracks ORDER BY total_plays DESC LIMIT 20",
+      "predicted_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'id' RETURN a.name AS artist, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 20",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "What are the top 5 most played tracks by A.L.V.I.N?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: 'A.L.V.I.N'}) RETURN t.name AS track, t.play_count AS plays, t.skip_count AS skips ORDER BY plays DESC LIMIT 5",
+      "predicted_cypher": "MATCH (a:Artist {name: 'A.L.V.I.N'})<-[:BY]-(t:Track) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 5",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 1.0
+    },
+    {
+      "question": "For 6ix9ine, collect up to five distinct featured artists ordered by collaboration frequency.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '6ix9ine'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH a, f, count(t) AS c WHERE f IS NOT NULL ORDER BY c DESC RETURN a.name AS artist, collect(f.name)[0..5] AS top_featured",
+      "predicted_cypher": "MATCH (t:Track)-[:FEATURES]->(a:Artist) WHERE t.name = \"6ix9ine\" WITH a, count(t) AS collaboration_count ORDER BY collaboration_count DESC LIMIT 5 RETURN a.name AS artist_name, collaboration_count",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "For single release All Day (feat. Theophilus London, Allan Kingdom & Paul McCartney), list up to 15 related tracks and artists.",
+      "reference_cypher": "MATCH (t:Track)-[:IS_SINGLE]->(s:Single {name: 'All Day (feat. Theophilus London, Allan Kingdom & Paul McCartney)'}) MATCH (t)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 15",
+      "predicted_cypher": "MATCH (s:Single {name: \"All Day (feat. Theophilus London, Allan Kingdom & Paul McCartney)\"})-[:IS_SINGLE]->(t:Track) WITH t MATCH (t)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist LIMIT 15",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "Show 10 tracks tagged with mood defiant and their play counts.",
+      "reference_cypher": "MATCH (t:Track)-[:HAS_MOOD]->(m:Mood {name: 'defiant'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.lyrics_found = true RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 10",
+      "predicted_cypher": "MATCH (t:Track)-[:HAS_MOOD]->(m:Mood {name: 'defiant'}) RETURN t.name AS track_name, t.play_count AS play_count LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "For 88rising, which genres have the most tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '88rising'}) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: '88rising'})-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(*) AS track_count ORDER BY track_count DESC",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6
+    },
+    {
+      "question": "In playlist Chill, list up to 20 tracks with their genre and era.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Chill'}) MATCH (t)-[:IN_GENRE]->(g:Genre) MATCH (t)-[:IN_ERA]->(e:Era) RETURN t.name AS track, g.name AS genre, e.name AS era ORDER BY t.play_count DESC LIMIT 20",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Chill'})-[:IN_PLAYLIST]->(t:Track)-[:IN_GENRE]->(g:Genre), (t)-[:IN_ERA]->(e:Era) RETURN t.name AS track, g.name AS genre, e.name AS era LIMIT 20",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "What are the top 15 most played tracks by $NOT & A$AP Rocky?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '$NOT & A$AP Rocky'}) RETURN t.name AS track, t.play_count AS plays, t.skip_count AS skips ORDER BY plays DESC LIMIT 15",
+      "predicted_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: 'NOT & A$AP Rocky'}) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 15",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "Which 20 artists appear most in playlist My Shazam Tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'My Shazam Tracks'}) MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC, total_plays DESC LIMIT 20",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'My Shazam Tracks'})-[:IN_PLAYLIST]->(t:Track)-[:BY]->(a:Artist) RETURN a.name, count(t) AS track_count ORDER BY track_count DESC LIMIT 20",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "For playlist Replay 2020, collect up to five unique genres for each artist.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Replay 2020'}) MATCH (t)-[:BY]->(a:Artist) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN a.name AS artist, collect(DISTINCT g.name)[0..5] AS genres, count(DISTINCT t) AS tracks ORDER BY tracks DESC LIMIT 15",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Replay 2020'})<-[:IN_PLAYLIST]-(t:Track)-[:IN_GENRE]->(g:Genre) WITH p, t, g MATCH (t)-[:BY]->(a:Artist) WITH p, a, collect(DISTINCT g) AS genres WHERE size(genres) <= 5 RETURN p.name AS playlist, a.name AS artist, genres",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.14705882352941177
+    },
+    {
+      "question": "Within genre Classical, which 25 tracks have the highest skip-to-play ratio?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'Classical'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.play_count > 0 RETURN t.name AS track, a.name AS artist, toFloat(t.skip_count) / t.play_count AS skip_ratio ORDER BY skip_ratio DESC LIMIT 25",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'Classical'}) WITH t, t.skip_count AS skip_count, t.play_count AS play_count WHERE play_count > 0 WITH t, (toFloat(skip_count) / toFloat(play_count)) AS skip_to_play_ratio ORDER BY skip_to_play_ratio DESC LIMIT 25 RETURN t.name AS track_name, skip_to_play_ratio",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.7428571428571429
+    },
+    {
+      "question": "What are the top 25 most played tracks by Aaron Smith?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: 'Aaron Smith'}) RETURN t.name AS track, t.play_count AS plays, t.skip_count AS skips ORDER BY plays DESC LIMIT 25",
+      "predicted_cypher": "MATCH (a:Artist {name: 'Aaron Smith'})<-[:BY]-(t:Track) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 25",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "Show 15 tracks tagged with mood nostalgic and their play counts.",
+      "reference_cypher": "MATCH (t:Track)-[:HAS_MOOD]->(m:Mood {name: 'nostalgic'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.lyrics_found = true RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 15",
+      "predicted_cypher": "MATCH (t:Track)-[:HAS_MOOD]->(m:Mood {name: 'nostalgic'}) RETURN t.name AS track_name, t.play_count AS play_count LIMIT 15",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.03278688524590164
+    },
+    {
+      "question": "In genre Classical, which artists have the most loved tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'Classical'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.loved = true RETURN a.name AS artist, count(t) AS loved_tracks, sum(t.play_count) AS total_plays ORDER BY loved_tracks DESC, total_plays DESC LIMIT 15",
+      "predicted_cypher": "MATCH (a:Artist)-[:IN_GENRE]->(g:Genre {name: 'Classical'}) MATCH (a)<-[:BY]-(t:Track) WHERE t.loved = true WITH a, count(t) AS loved_tracks ORDER BY loved_tracks DESC RETURN a.name AS artist, loved_tracks LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "Within genre Alternative Folk, which 20 tracks have the highest skip-to-play ratio?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'Alternative Folk'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.play_count > 0 RETURN t.name AS track, a.name AS artist, toFloat(t.skip_count) / t.play_count AS skip_ratio ORDER BY skip_ratio DESC LIMIT 20",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'Alternative Folk'}) WITH t, t.skip_count AS skip_count, t.play_count AS play_count WHERE play_count > 0 WITH t, skip_count / play_count AS skip_to_play_ratio ORDER BY skip_to_play_ratio DESC LIMIT 20 RETURN t.name AS track_name, skip_to_play_ratio",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.3076923076923077
+    },
+    {
+      "question": "In language code ja, who are the top 20 artists by total plays?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'ja' RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS tracks ORDER BY total_plays DESC LIMIT 20",
+      "predicted_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'ja' RETURN a.name AS artist, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 20",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 1.0
+    },
+    {
+      "question": "Which 25 artists have the most total plays in the Pre-90s era?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: 'Pre-90s'}) MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS track_count ORDER BY total_plays DESC LIMIT 25",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: 'Pre-90s'}) MATCH (t)-[:BY]->(a:Artist) WITH a, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 25 RETURN a.name AS artist, total_plays",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.8604651162790697
+    },
+    {
+      "question": "For 42 Dugg, which genres have the most tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '42 Dugg'}) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: '42 Dugg'})-[:IN_GENRE {track_count: trackCount}]->(g:Genre) RETURN g.name AS genre, trackCount ORDER BY trackCount DESC LIMIT 1",
+      "syntax_valid": false,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "For $NOT & A$AP Rocky, collect up to five distinct featured artists ordered by collaboration frequency.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '$NOT & A$AP Rocky'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH a, f, count(t) AS c WHERE f IS NOT NULL ORDER BY c DESC RETURN a.name AS artist, collect(f.name)[0..5] AS top_featured",
+      "predicted_cypher": "MATCH (t:Track)-[:FEATURES]->(a:Artist) WHERE a.name = 'A$AP Rocky' WITH a, count(t) AS collaboration_count ORDER BY collaboration_count DESC LIMIT 5 RETURN a.name AS artist_name, collaboration_count",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "For language code fi, show tracks with high repetition rate and at least 50 total words.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'fi' AND t.total_words >= 50 AND t.repetition_rate IS NOT NULL RETURN t.name AS track, a.name AS artist, t.repetition_rate AS repetition_rate ORDER BY repetition_rate DESC LIMIT 15",
+      "predicted_cypher": "MATCH (t:Track) WHERE t.language = 'fi' AND t.repetition_rate > 0.5 AND t.total_words >= 50 RETURN t.name AS track_name, t.repetition_rate AS repetition_rate, t.total_words AS total_words",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.5
+    },
+    {
+      "question": "Which 10 artists have the most total plays in the 2010s era?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2010s'}) MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS track_count ORDER BY total_plays DESC LIMIT 10",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2010s'}) MATCH (t)-[:BY]->(a:Artist) WITH a, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 10 RETURN a.name AS artist, total_plays",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6551724137931034
+    },
+    {
+      "question": "For 070 Shake, collect up to five distinct featured artists ordered by collaboration frequency.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '070 Shake'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH a, f, count(t) AS c WHERE f IS NOT NULL ORDER BY c DESC RETURN a.name AS artist, collect(f.name)[0..5] AS top_featured",
+      "predicted_cypher": "MATCH (t:Track)-[:FEATURES]->(a:Artist) WHERE t.name = \"070 Shake\" RETURN a.name AS artist, COUNT(t) AS collaboration_count ORDER BY collaboration_count DESC LIMIT 5",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "In playlist Chill, list up to 10 tracks with their genre and era.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Chill'}) MATCH (t)-[:IN_GENRE]->(g:Genre) MATCH (t)-[:IN_ERA]->(e:Era) RETURN t.name AS track, g.name AS genre, e.name AS era ORDER BY t.play_count DESC LIMIT 10",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Chill'})-[:IN_PLAYLIST]->(t:Track)-[:IN_GENRE]->(g:Genre), (t)-[:IN_ERA]->(e:Era) RETURN t.name AS track, g.name AS genre, e.name AS era LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "Which 30 artists have the most total plays in the 90s era?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '90s'}) MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS track_count ORDER BY total_plays DESC LIMIT 30",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '90s'}) WITH t, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 30 MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, total_plays",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6792452830188679
+    },
+    {
+      "question": "Show up to 15 tracks from album 21st Century Breakdown sorted by play count.",
+      "reference_cypher": "MATCH (t:Track)-[:ON]->(al:Album {title: '21st Century Breakdown'}) MATCH (t)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 15",
+      "predicted_cypher": "MATCH (a:Album {title: \"21st Century Breakdown\"})<-[:ON]-(t:Track) RETURN t.name AS track_name, t.play_count AS play_count ORDER BY t.play_count DESC LIMIT 15",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "For 4batz, collect up to five distinct featured artists ordered by collaboration frequency.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '4batz'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH a, f, count(t) AS c WHERE f IS NOT NULL ORDER BY c DESC RETURN a.name AS artist, collect(f.name)[0..5] AS top_featured",
+      "predicted_cypher": "MATCH (t:Track)-[:FEATURES]->(a:Artist) WHERE a.name = '4batz' WITH a, count(t) AS collaboration_count ORDER BY collaboration_count DESC LIMIT 5 RETURN a.name AS artist_name, collaboration_count",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "For single release AMG (feat. L'One), list up to 5 related tracks and artists.",
+      "reference_cypher": "MATCH (t:Track)-[:IS_SINGLE]->(s:Single {name: 'AMG (feat. L\\'One)'}) MATCH (t)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 5",
+      "predicted_cypher": "MATCH (s:Single {name: \"AMG (feat. L'One)\"})-[:IS_SINGLE]->(t:Track) WITH t MATCH (t)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist LIMIT 5",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "List up to 10 collaborators featured on tracks by A Boogie wit da Hoodie.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: 'A Boogie wit da Hoodie'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH t, f WHERE f IS NOT NULL RETURN f.name AS featured_artist, count(t) AS collaborations ORDER BY collaborations DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: \"A Boogie wit da Hoodie\"})-[:FEATURES]->(t:Track)-[:BY]->(collaborator:Artist) RETURN DISTINCT collaborator.name LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "For single release Any Kind of Guy, list up to 30 related tracks and artists.",
+      "reference_cypher": "MATCH (t:Track)-[:IS_SINGLE]->(s:Single {name: 'Any Kind of Guy'}) MATCH (t)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 30",
+      "predicted_cypher": "MATCH (s:Single {name: 'Any Kind of Guy'})<-[:IS_SINGLE]-(t:Track)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist LIMIT 30",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "In genre Classical Crossover, which artists have the most loved tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'Classical Crossover'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.loved = true RETURN a.name AS artist, count(t) AS loved_tracks, sum(t.play_count) AS total_plays ORDER BY loved_tracks DESC, total_plays DESC LIMIT 15",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'Classical Crossover'}) WHERE t.loved = true WITH g, t, count(t) AS loved_tracks ORDER BY loved_tracks DESC RETURN g.name AS genre, t.artist_name AS artist, loved_tracks",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "For playlist Replay 2019, what are the top 10 genres by track count?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Replay 2019'}) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(t) AS tracks ORDER BY tracks DESC LIMIT 10",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Replay 2019'})<-[:IN_PLAYLIST]-(t:Track)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, sum(t.track_count) AS track_count ORDER BY track_count DESC LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.5
+    },
+    {
+      "question": "Which 25 most played tracks mention alaska in the lyrics?",
+      "reference_cypher": "MATCH (t:Track)-[:MENTIONS_PLACE]->(pl:Place {name: 'alaska'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.lyrics_found = true RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 25",
+      "predicted_cypher": "MATCH (t:Track)-[:MENTIONS_PLACE]->(p:Place {name: 'alaska'}) RETURN t.name AS track_name, t.play_count AS play_count ORDER BY t.play_count DESC LIMIT 25",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "Show 5 tracks tagged with mood uplifting and their play counts.",
+      "reference_cypher": "MATCH (t:Track)-[:HAS_MOOD]->(m:Mood {name: 'uplifting'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.lyrics_found = true RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 5",
+      "predicted_cypher": "MATCH (t:Track)-[:HAS_MOOD]->(m:Mood {name: 'uplifting'}) RETURN t.name AS track_name, t.play_count AS play_count LIMIT 5",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.09090909090909091
+    },
+    {
+      "question": "In genre Blues, which artists have the most loved tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'Blues'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.loved = true RETURN a.name AS artist, count(t) AS loved_tracks, sum(t.play_count) AS total_plays ORDER BY loved_tracks DESC, total_plays DESC LIMIT 15",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'Blues'}) WHERE t.loved = true WITH g, t, count(t) AS loved_track_count ORDER BY loved_track_count DESC RETURN g.name AS genre, t.artist AS artist, loved_track_count",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "What are the top 30 most played tracks by ABBA?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: 'ABBA'}) RETURN t.name AS track, t.play_count AS plays, t.skip_count AS skips ORDER BY plays DESC LIMIT 30",
+      "predicted_cypher": "MATCH (a:Artist {name: 'ABBA'})<-[:BY]-(t:Track) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 30",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "For playlist Fun music, what are the top 10 genres by track count?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Fun music'}) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(t) AS tracks ORDER BY tracks DESC LIMIT 10",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Fun music'})<-[:IN_PLAYLIST]-(t:Track)-[:IN_GENRE]->(g:Genre) WITH g, sum(t.track_count) AS total_track_count ORDER BY total_track_count DESC LIMIT 10 RETURN g.name AS genre, total_track_count",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.42857142857142855
+    },
+    {
+      "question": "Which 5 most played tracks mention alameda in the lyrics?",
+      "reference_cypher": "MATCH (t:Track)-[:MENTIONS_PLACE]->(pl:Place {name: 'alameda'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.lyrics_found = true RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 5",
+      "predicted_cypher": "MATCH (t:Track)-[:MENTIONS_PLACE]->(p:Place {name: 'alameda'}) RETURN t.name AS track_name, t.play_count AS play_count ORDER BY t.play_count DESC LIMIT 5",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "What are the top 10 most played tracks by AA Rashid?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: 'AA Rashid'}) RETURN t.name AS track, t.play_count AS plays, t.skip_count AS skips ORDER BY plays DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: 'AA Rashid'})<-[:BY]-(t:Track) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "In language code id, who are the top 5 artists by total plays?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'id' RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS tracks ORDER BY total_plays DESC LIMIT 5",
+      "predicted_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'id' RETURN a.name AS artist, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 5",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "Which 5 artists have the most total plays in the 90s era?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '90s'}) MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS track_count ORDER BY total_plays DESC LIMIT 5",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '90s'}) WITH t, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 5 MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, total_plays",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.15
+    },
+    {
+      "question": "Show the top 15 most played tracks from the 2000s era.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2000s'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.play_count > 0 RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 15",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2000s'}) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 15",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.65
+    },
+    {
+      "question": "List up to 5 collaborators featured on tracks by 4 Skins.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '4 Skins'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH t, f WHERE f IS NOT NULL RETURN f.name AS featured_artist, count(t) AS collaborations ORDER BY collaborations DESC LIMIT 5",
+      "predicted_cypher": "MATCH (t:Track)-[:FEATURES]->(a:Artist) WHERE t.name = \"4 Skins\" RETURN a.name AS collaborator LIMIT 5",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "Which 10 tracks mention topic insecurity with the highest type-token ratio?",
+      "reference_cypher": "MATCH (t:Track)-[:HAS_TOPIC]->(tp:Topic {name: 'insecurity'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.lyrics_found = true AND t.type_token_ratio IS NOT NULL RETURN t.name AS track, a.name AS artist, t.type_token_ratio AS ttr ORDER BY ttr DESC LIMIT 10",
+      "predicted_cypher": "MATCH (t:Track)-[:HAS_TOPIC]->(topic:Topic {name: 'insecurity'}) RETURN t.name AS track_name, t.type_token_ratio AS type_token_ratio ORDER BY t.type_token_ratio DESC LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.72
+    },
+    {
+      "question": "List up to 30 collaborators featured on tracks by 6 Day Riot.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '6 Day Riot'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH t, f WHERE f IS NOT NULL RETURN f.name AS featured_artist, count(t) AS collaborations ORDER BY collaborations DESC LIMIT 30",
+      "predicted_cypher": "MATCH (t:Track)-[:FEATURES]->(a:Artist) WHERE (t)-[:BY]->(:Artist {name: '6 Day Riot'}) RETURN a.name AS collaborator LIMIT 30",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "In playlist Fun music, list up to 10 tracks with their genre and era.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Fun music'}) MATCH (t)-[:IN_GENRE]->(g:Genre) MATCH (t)-[:IN_ERA]->(e:Era) RETURN t.name AS track, g.name AS genre, e.name AS era ORDER BY t.play_count DESC LIMIT 10",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Fun music'})<-[:IN_PLAYLIST]-(t:Track)-[:IN_GENRE]->(g:Genre), (t)-[:IN_ERA]->(e:Era) RETURN t.name AS track, g.name AS genre, e.name AS era LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.1111111111111111
+    },
+    {
+      "question": "For single release 4 Thangs (feat. Big Sean & Hit-Boy), list up to 25 related tracks and artists.",
+      "reference_cypher": "MATCH (t:Track)-[:IS_SINGLE]->(s:Single {name: '4 Thangs (feat. Big Sean & Hit-Boy)'}) MATCH (t)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 25",
+      "predicted_cypher": "MATCH (s:Single {name: \"4 Thangs (feat. Big Sean & Hit-Boy)\"})-[:IS_SINGLE]->(t:Track) WITH t MATCH (t)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist LIMIT 25",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "For 42 Dugg, collect up to five distinct featured artists ordered by collaboration frequency.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '42 Dugg'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH a, f, count(t) AS c WHERE f IS NOT NULL ORDER BY c DESC RETURN a.name AS artist, collect(f.name)[0..5] AS top_featured",
+      "predicted_cypher": "MATCH (a:Artist {name: '42 Dugg'})-[:FEATURES]->(fa:Artist) RETURN fa.name AS FeaturedArtist, COUNT(*) AS CollaborationCount ORDER BY CollaborationCount DESC LIMIT 5",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "In language code hr, who are the top 10 artists by total plays?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'hr' RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS tracks ORDER BY total_plays DESC LIMIT 10",
+      "predicted_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'hr' RETURN a.name AS artist, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "Which 30 most played tracks mention 285 in the lyrics?",
+      "reference_cypher": "MATCH (t:Track)-[:MENTIONS_PLACE]->(pl:Place {name: '285'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.lyrics_found = true RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 30",
+      "predicted_cypher": "MATCH (t:Track) WHERE t.lyrics_found = true AND t.unique_words >= 285 RETURN t.name, t.play_count ORDER BY t.play_count DESC LIMIT 30",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "Show the top 25 most played tracks from the 2020s era.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2020s'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.play_count > 0 RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 25",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2020s'}) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 25",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6557377049180327
+    },
+    {
+      "question": "For 104, collect up to five distinct featured artists ordered by collaboration frequency.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '104'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH a, f, count(t) AS c WHERE f IS NOT NULL ORDER BY c DESC RETURN a.name AS artist, collect(f.name)[0..5] AS top_featured",
+      "predicted_cypher": "MATCH (t:Track)-[:FEATURES]->(a:Artist) WHERE t.play_count = 104 WITH a, count(t) AS collaboration_count ORDER BY collaboration_count DESC LIMIT 5 RETURN a.name AS artist_name, collaboration_count",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "What are the top 10 most played tracks by A$AP Rocky?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: 'A$AP Rocky'}) RETURN t.name AS track, t.play_count AS plays, t.skip_count AS skips ORDER BY plays DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: \"A$AP Rocky\"})<-[:BY]-(t:Track) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.7916666666666666
+    },
+    {
+      "question": "In playlist Replay 2019, list up to 20 tracks with their genre and era.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Replay 2019'}) MATCH (t)-[:IN_GENRE]->(g:Genre) MATCH (t)-[:IN_ERA]->(e:Era) RETURN t.name AS track, g.name AS genre, e.name AS era ORDER BY t.play_count DESC LIMIT 20",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Replay 2019'})<-[:IN_PLAYLIST]-(t:Track)-[:IN_GENRE]->(g:Genre), (t)-[:IN_ERA]->(e:Era) RETURN t.name AS track, g.name AS genre, e.name AS era LIMIT 20",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.21428571428571427
+    },
+    {
+      "question": "List up to 15 collaborators featured on tracks by 5'nizza.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '5\\'nizza'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH t, f WHERE f IS NOT NULL RETURN f.name AS featured_artist, count(t) AS collaborations ORDER BY collaborations DESC LIMIT 15",
+      "predicted_cypher": "MATCH (a:Artist {name: '5'nizza'})-[:FEATURES]->(t:Track)-[:BY]->(collaborator:Artist) RETURN DISTINCT collaborator.name LIMIT 15",
+      "syntax_valid": false,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "For single release (i hope you) miss me, list up to 5 related tracks and artists.",
+      "reference_cypher": "MATCH (t:Track)-[:IS_SINGLE]->(s:Single {name: '(i hope you) miss me'}) MATCH (t)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 5",
+      "predicted_cypher": "MATCH (s:Single {name: \"I Hope (You) Miss Me\"})<-[:IS_SINGLE]-(t:Track)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist LIMIT 5",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "For AJR, which genres have the most tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: 'AJR'}) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: 'AJR'})-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(*) AS track_count ORDER BY track_count DESC",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.25
+    },
+    {
+      "question": "In playlist Billy Talent Essentials, list up to 10 tracks with their genre and era.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Billy Talent Essentials'}) MATCH (t)-[:IN_GENRE]->(g:Genre) MATCH (t)-[:IN_ERA]->(e:Era) RETURN t.name AS track, g.name AS genre, e.name AS era ORDER BY t.play_count DESC LIMIT 10",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Billy Talent Essentials'})-[:IN_PLAYLIST]->(t:Track)-[:IN_GENRE]->(g:Genre), (t)-[:IN_ERA]->(e:Era) RETURN t.name AS track, g.name AS genre, e.name AS era LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "Show 30 tracks tagged with mood romantic and their play counts.",
+      "reference_cypher": "MATCH (t:Track)-[:HAS_MOOD]->(m:Mood {name: 'romantic'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.lyrics_found = true RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 30",
+      "predicted_cypher": "MATCH (t:Track)-[:HAS_MOOD]->(m:Mood {name: 'romantic'}) RETURN t.name AS track_name, t.play_count AS play_count LIMIT 30",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.05309734513274336
+    },
+    {
+      "question": "Which 30 artists have the most total plays in the 2000s era?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2000s'}) MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS track_count ORDER BY total_plays DESC LIMIT 30",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2000s'}) MATCH (t)-[:BY]->(a:Artist) WITH a, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 30 RETURN a.name AS artist, total_plays",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.9
+    },
+    {
+      "question": "List up to 10 collaborators featured on tracks by AA Rashid.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: 'AA Rashid'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH t, f WHERE f IS NOT NULL RETURN f.name AS featured_artist, count(t) AS collaborations ORDER BY collaborations DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: 'AA Rashid'})-[:FEATURES]->(t:Track)-[:BY]->(collaborator:Artist) RETURN DISTINCT collaborator.name LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "Show the top 30 most played tracks from the 90s era.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '90s'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.play_count > 0 RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 30",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '90s'}) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 30",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6212121212121212
+    },
+    {
+      "question": "In playlist Replay 2020, list up to 15 tracks with their genre and era.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Replay 2020'}) MATCH (t)-[:IN_GENRE]->(g:Genre) MATCH (t)-[:IN_ERA]->(e:Era) RETURN t.name AS track, g.name AS genre, e.name AS era ORDER BY t.play_count DESC LIMIT 15",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Replay 2020'})<-[:IN_PLAYLIST]-(t:Track)-[:IN_GENRE]->(g:Genre), (t)-[:IN_ERA]->(e:Era) RETURN t.name AS track, g.name AS genre, e.name AS era LIMIT 15",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.2571428571428571
+    },
+    {
+      "question": "For ARIA, which genres have the most tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: 'ARIA'}) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: 'ARIA'})-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, sum(g.track_count) AS track_count ORDER BY track_count DESC",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.25
+    },
+    {
+      "question": "In playlist Chill, list up to 15 tracks with their genre and era.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Chill'}) MATCH (t)-[:IN_GENRE]->(g:Genre) MATCH (t)-[:IN_ERA]->(e:Era) RETURN t.name AS track, g.name AS genre, e.name AS era ORDER BY t.play_count DESC LIMIT 15",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Chill'})-[:IN_PLAYLIST]->(t:Track)-[:IN_GENRE]->(g:Genre), (t)-[:IN_ERA]->(e:Era) RETURN t.name AS track, g.name AS genre, e.name AS era LIMIT 15",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "List up to 25 collaborators featured on tracks by 9 Gramm.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '9 Gramm'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH t, f WHERE f IS NOT NULL RETURN f.name AS featured_artist, count(t) AS collaborations ORDER BY collaborations DESC LIMIT 25",
+      "predicted_cypher": "MATCH (a:Artist {name: '9 Gramm'})-[:FEATURES]->(t:Track)-[:BY]->(collaborator:Artist) RETURN DISTINCT collaborator.name LIMIT 25",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "For language code it, show tracks with high repetition rate and at least 50 total words.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'it' AND t.total_words >= 50 AND t.repetition_rate IS NOT NULL RETURN t.name AS track, a.name AS artist, t.repetition_rate AS repetition_rate ORDER BY repetition_rate DESC LIMIT 15",
+      "predicted_cypher": "MATCH (t:Track) WHERE t.language = 'it' AND t.repetition_rate > 0.5 AND t.total_words >= 50 RETURN t.name AS track_name, t.repetition_rate AS repetition_rate, t.total_words AS total_words",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "What are the top 20 most played tracks by 4batz?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '4batz'}) RETURN t.name AS track, t.play_count AS plays, t.skip_count AS skips ORDER BY plays DESC LIMIT 20",
+      "predicted_cypher": "MATCH (a:Artist {name: '4batz'})<-[:BY]-(t:Track) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 20",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 1.0
+    },
+    {
+      "question": "For Aarne, which genres have the most tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: 'Aarne'}) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: 'Aarne'})-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, COUNT(*) AS track_count ORDER BY track_count DESC",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "In genre Children's Music, which artists have the most loved tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'Children\\'s Music'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.loved = true RETURN a.name AS artist, count(t) AS loved_tracks, sum(t.play_count) AS total_plays ORDER BY loved_tracks DESC, total_plays DESC LIMIT 15",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'Children's Music'}) WHERE t.loved = true WITH g, t, count(t) AS loved_tracks ORDER BY loved_tracks DESC RETURN g.name AS genre, t.artist.name AS artist, loved_tracks",
+      "syntax_valid": false,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "Show the top 30 most played tracks from the 2000s era.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2000s'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.play_count > 0 RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 30",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2000s'}) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 30",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6285714285714286
+    },
+    {
+      "question": "For $uicideboy$, collect up to five distinct featured artists ordered by collaboration frequency.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '$uicideboy$'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH a, f, count(t) AS c WHERE f IS NOT NULL ORDER BY c DESC RETURN a.name AS artist, collect(f.name)[0..5] AS top_featured",
+      "predicted_cypher": "MATCH (t:Track)-[:FEATURES]->(a:Artist) WHERE t.name = 'uicideboy' WITH a, count(t) AS collaboration_count ORDER BY collaboration_count DESC LIMIT 5 RETURN a.name AS artist_name, collaboration_count",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "Find tracks with lyrics where mood tags are missing, then show artist and play count.",
+      "reference_cypher": "MATCH (t:Track) WHERE t.lyrics_found = true OPTIONAL MATCH (t)-[:HAS_MOOD]->(m:Mood) WITH t, count(m) AS mood_count WHERE mood_count = 0 MATCH (t)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 25",
+      "predicted_cypher": "MATCH (t:Track) WHERE t.lyrics_found = true AND NOT EXISTS {     (t)-[:HAS_MOOD]->(:Mood) } RETURN t.artist, t.play_count",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.2857142857142857
+    },
+    {
+      "question": "What are the top 10 most played tracks by A Boogie wit da Hoodie?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: 'A Boogie wit da Hoodie'}) RETURN t.name AS track, t.play_count AS plays, t.skip_count AS skips ORDER BY plays DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: \"A Boogie wit da Hoodie\"})<-[:BY]-(t:Track) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.7142857142857143
+    },
+    {
+      "question": "Within genre Adult Contemporary, which 20 tracks have the highest skip-to-play ratio?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'Adult Contemporary'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.play_count > 0 RETURN t.name AS track, a.name AS artist, toFloat(t.skip_count) / t.play_count AS skip_ratio ORDER BY skip_ratio DESC LIMIT 20",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'Adult Contemporary'}) WITH t, t.skip_count AS skip_count, t.play_count AS play_count WHERE play_count > 0 WITH t, skip_count / play_count AS skip_to_play_ratio ORDER BY skip_to_play_ratio DESC LIMIT 20 RETURN t.name AS track_name, skip_to_play_ratio",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.25
+    },
+    {
+      "question": "Show up to 10 tracks from album + sorted by play count.",
+      "reference_cypher": "MATCH (t:Track)-[:ON]->(al:Album {title: '+'}) MATCH (t)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 10",
+      "predicted_cypher": "MATCH (t:Track)-[:ON]->(a:Album) WHERE a.title = \"The Slim Shady LP\" RETURN t.name AS track_name, t.play_count AS play_count ORDER BY t.play_count DESC LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "In language code de, who are the top 10 artists by total plays?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'de' RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS tracks ORDER BY total_plays DESC LIMIT 10",
+      "predicted_cypher": "MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'de' RETURN a.name AS artist, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "List up to 15 collaborators featured on tracks by $NOT & A$AP Rocky.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '$NOT & A$AP Rocky'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH t, f WHERE f IS NOT NULL RETURN f.name AS featured_artist, count(t) AS collaborations ORDER BY collaborations DESC LIMIT 15",
+      "predicted_cypher": "MATCH (a:Artist {name: '$NOT'})-[:BY]->(t:Track)-[:FEATURES]->(c:Artist) WITH c, count(t) AS track_count WHERE c <> a RETURN c.name AS collaborator, track_count ORDER BY track_count DESC LIMIT 15",
+      "syntax_valid": false,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "What are the top 20 most played tracks by 42 Dugg?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '42 Dugg'}) RETURN t.name AS track, t.play_count AS plays, t.skip_count AS skips ORDER BY plays DESC LIMIT 20",
+      "predicted_cypher": "MATCH (a:Artist {name: '42 Dugg'})<-[:BY]-(t:Track) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 20",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "Which 10 artists have the most total plays in the Pre-90s era?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: 'Pre-90s'}) MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS track_count ORDER BY total_plays DESC LIMIT 10",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: 'Pre-90s'}) MATCH (t)-[:BY]->(a:Artist) WITH a, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 10 RETURN a.name AS artist, total_plays",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.7727272727272727
+    },
+    {
+      "question": "Which 20 artists appear most in playlist Replay 2019?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Replay 2019'}) MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC, total_plays DESC LIMIT 20",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Replay 2019'})<-[:IN_PLAYLIST]-(t:Track)-[:BY]->(a:Artist) RETURN a.name, count(t) AS track_count ORDER BY track_count DESC LIMIT 20",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.5
+    },
+    {
+      "question": "For single release Alors Alors, list up to 10 related tracks and artists.",
+      "reference_cypher": "MATCH (t:Track)-[:IS_SINGLE]->(s:Single {name: 'Alors Alors'}) MATCH (t)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 10",
+      "predicted_cypher": "MATCH (s:Single {name: 'Alors Alors'})<-[:IS_SINGLE]-(t:Track)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "What are the top 10 most played tracks by Aaron May?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: 'Aaron May'}) RETURN t.name AS track, t.play_count AS plays, t.skip_count AS skips ORDER BY plays DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: 'Aaron May'})<-[:BY]-(t:Track) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.8333333333333334
+    },
+    {
+      "question": "List up to 30 collaborators featured on tracks by ABBA.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: 'ABBA'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH t, f WHERE f IS NOT NULL RETURN f.name AS featured_artist, count(t) AS collaborations ORDER BY collaborations DESC LIMIT 30",
+      "predicted_cypher": "MATCH (t:Track)-[:FEATURES]->(a:Artist) WHERE exists {   (t)-[:BY]->(:Artist {name: 'ABBA'}) } RETURN a.name AS collaborator LIMIT 30",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "Which 20 artists appear most in playlist Replay 2020?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Replay 2020'}) MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC, total_plays DESC LIMIT 20",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Replay 2020'})<-[:IN_PLAYLIST]-(t:Track)-[:BY]->(a:Artist) RETURN a.name, count(t) AS track_count ORDER BY track_count DESC LIMIT 20",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.3877551020408163
+    },
+    {
+      "question": "List up to 20 collaborators featured on tracks by 42 Dugg.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '42 Dugg'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH t, f WHERE f IS NOT NULL RETURN f.name AS featured_artist, count(t) AS collaborations ORDER BY collaborations DESC LIMIT 20",
+      "predicted_cypher": "MATCH (a:Artist {name: '42 Dugg'})-[:FEATURES]->(t:Track)-[:BY]->(collaborator:Artist) RETURN DISTINCT collaborator.name LIMIT 20",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "Show up to 30 tracks from album 50 Years of the Piano Man sorted by play count.",
+      "reference_cypher": "MATCH (t:Track)-[:ON]->(al:Album {title: '50 Years of the Piano Man'}) MATCH (t)-[:BY]->(a:Artist) RETURN t.name AS track, a.name AS artist, t.play_count AS plays ORDER BY plays DESC LIMIT 30",
+      "predicted_cypher": "MATCH (a:Album {title: \"50 Years of the Piano Man\"})<-[:ON]-(t:Track) RETURN t.name AS track_name, t.play_count AS play_count ORDER BY t.play_count DESC LIMIT 30",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.8333333333333334
+    },
+    {
+      "question": "For playlist Chill, collect up to five unique genres for each artist.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Chill'}) MATCH (t)-[:BY]->(a:Artist) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN a.name AS artist, collect(DISTINCT g.name)[0..5] AS genres, count(DISTINCT t) AS tracks ORDER BY tracks DESC LIMIT 15",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Chill'})-[:IN_PLAYLIST]->(t:Track)-[:IN_GENRE]->(g:Genre) WITH p, t, g MATCH (t)-[:BY]->(a:Artist) WITH p, a, collect(DISTINCT g) AS genres WHERE size(genres) <= 5 RETURN p.name AS playlist, a.name AS artist, genres",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "For 3OH!3, collect up to five distinct featured artists ordered by collaboration frequency.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '3OH!3'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH a, f, count(t) AS c WHERE f IS NOT NULL ORDER BY c DESC RETURN a.name AS artist, collect(f.name)[0..5] AS top_featured",
+      "predicted_cypher": "MATCH (t:Track)-[:FEATURES]->(a:Artist) WHERE t.name = \"3OH!3\" RETURN a.name AS artist, COUNT(t) AS collaboration_count ORDER BY collaboration_count DESC LIMIT 5",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "What are the top 30 most played tracks by 6 Day Riot?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '6 Day Riot'}) RETURN t.name AS track, t.play_count AS plays, t.skip_count AS skips ORDER BY plays DESC LIMIT 30",
+      "predicted_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '6 Day Riot'}) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 30",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.6666666666666666
+    },
+    {
+      "question": "Which 30 artists have the most total plays in the 2010s era?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2010s'}) MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS track_count ORDER BY total_plays DESC LIMIT 30",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2010s'}) MATCH (t)-[:BY]->(a:Artist) WITH a, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 30 RETURN a.name AS artist, total_plays",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.7662337662337663
+    },
+    {
+      "question": "List up to 20 collaborators featured on tracks by ANIKV.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: 'ANIKV'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH t, f WHERE f IS NOT NULL RETURN f.name AS featured_artist, count(t) AS collaborations ORDER BY collaborations DESC LIMIT 20",
+      "predicted_cypher": "MATCH (a:Artist {name: 'ANIKV'})-[:FEATURES]->(t:Track)-[:BY]->(collaborator:Artist) RETURN DISTINCT collaborator.name LIMIT 20",
+      "syntax_valid": true,
+      "exact_match": true,
+      "jaccard": 1.0
+    },
+    {
+      "question": "Which 20 artists have the most total plays in the 2020s era?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2020s'}) MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS track_count ORDER BY total_plays DESC LIMIT 20",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_ERA]->(e:Era {name: '2020s'}) MATCH (t)-[:BY]->(a:Artist) WITH a, sum(t.play_count) AS total_plays ORDER BY total_plays DESC LIMIT 20 RETURN a.name AS artist, total_plays",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.7307692307692307
+    },
+    {
+      "question": "In playlist Fun music, list up to 20 tracks with their genre and era.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Fun music'}) MATCH (t)-[:IN_GENRE]->(g:Genre) MATCH (t)-[:IN_ERA]->(e:Era) RETURN t.name AS track, g.name AS genre, e.name AS era ORDER BY t.play_count DESC LIMIT 20",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Fun music'})<-[:IN_PLAYLIST]-(t:Track)-[:IN_GENRE]->(g:Genre), (t)-[:IN_ERA]->(e:Era) RETURN t.name AS track, g.name AS genre, e.name AS era LIMIT 20",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.08163265306122448
+    },
+    {
+      "question": "Which 10 artists appear most in playlist Billy Talent Essentials?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Billy Talent Essentials'}) MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC, total_plays DESC LIMIT 10",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Billy Talent Essentials'})-[:IN_PLAYLIST]->(t:Track)-[:BY]->(a:Artist) RETURN a.name, count(t) AS track_count ORDER BY track_count DESC LIMIT 10",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "What are the top 30 most played tracks by 88rising?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '88rising'}) RETURN t.name AS track, t.play_count AS plays, t.skip_count AS skips ORDER BY plays DESC LIMIT 30",
+      "predicted_cypher": "MATCH (a:Artist {name: '88rising'})<-[:BY]-(t:Track) RETURN t.name AS track, t.play_count AS plays ORDER BY t.play_count DESC LIMIT 30",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.8
+    },
+    {
+      "question": "Within genre British Invasion, which 20 tracks have the highest skip-to-play ratio?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'British Invasion'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.play_count > 0 RETURN t.name AS track, a.name AS artist, toFloat(t.skip_count) / t.play_count AS skip_ratio ORDER BY skip_ratio DESC LIMIT 20",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'British Invasion'}) WITH t, t.skip_count AS skip_count, t.play_count AS play_count WHERE play_count > 0 WITH t, skip_count / play_count AS skip_to_play_ratio ORDER BY skip_to_play_ratio DESC LIMIT 2 RETURN t.name AS track_name, skip_to_play_ratio",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.25
+    },
+    {
+      "question": "For Aaron May, which genres have the most tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: 'Aaron May'}) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: 'Aaron May'})-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, COUNT(*) AS track_count ORDER BY track_count DESC",
+      "syntax_valid": true,
+      "exact_match": false,
+      "jaccard": 0.25
+    }
+  ],
+  "failures": [
+    {
+      "question": "For playlist Replay 2019, collect up to five unique genres for each artist.",
+      "reference_cypher": "MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Replay 2019'}) MATCH (t)-[:BY]->(a:Artist) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN a.name AS artist, collect(DISTINCT g.name)[0..5] AS genres, count(DISTINCT t) AS tracks ORDER BY tracks DESC LIMIT 15",
+      "predicted_cypher": "MATCH (p:Playlist {name: 'Replay 2019'})-[:IN_PLAYLIST]->(t:Track)-[:IN_GENRE]->(g:Genre) WITH t.artist AS artist, collect(DISTINCT g.name) AS genres RETURN artist.name AS artistName, collect(g.name) AS genres LIMIT 5",
+      "syntax_valid": false,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "For 2 Chainz, which genres have the most tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '2 Chainz'}) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: '2 Chainz'})-[:IN_GENRE {track_count: trackCount}]->(g:Genre) RETURN g.name AS genre, trackCount ORDER BY trackCount DESC LIMIT 1",
+      "syntax_valid": false,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "For 5'nizza, which genres have the most tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '5\\'nizza'}) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: '5'nizza'})-[:IN_GENRE {track_count: trackCount}]->(g:Genre) RETURN g.name AS genre, trackCount ORDER BY trackCount DESC LIMIT 1",
+      "syntax_valid": false,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "For 3OH!3, which genres have the most tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '3OH!3'}) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: '3OH!3'})-[:IN_GENRE {track_count: trackCount}]->(g:Genre) RETURN g.name AS genre, trackCount ORDER BY trackCount DESC LIMIT 1",
+      "syntax_valid": false,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "For 42 Dugg, which genres have the most tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '42 Dugg'}) MATCH (t)-[:IN_GENRE]->(g:Genre) RETURN g.name AS genre, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC LIMIT 10",
+      "predicted_cypher": "MATCH (a:Artist {name: '42 Dugg'})-[:IN_GENRE {track_count: trackCount}]->(g:Genre) RETURN g.name AS genre, trackCount ORDER BY trackCount DESC LIMIT 1",
+      "syntax_valid": false,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "List up to 15 collaborators featured on tracks by 5'nizza.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '5\\'nizza'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH t, f WHERE f IS NOT NULL RETURN f.name AS featured_artist, count(t) AS collaborations ORDER BY collaborations DESC LIMIT 15",
+      "predicted_cypher": "MATCH (a:Artist {name: '5'nizza'})-[:FEATURES]->(t:Track)-[:BY]->(collaborator:Artist) RETURN DISTINCT collaborator.name LIMIT 15",
+      "syntax_valid": false,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "In genre Children's Music, which artists have the most loved tracks?",
+      "reference_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'Children\\'s Music'}) MATCH (t)-[:BY]->(a:Artist) WHERE t.loved = true RETURN a.name AS artist, count(t) AS loved_tracks, sum(t.play_count) AS total_plays ORDER BY loved_tracks DESC, total_plays DESC LIMIT 15",
+      "predicted_cypher": "MATCH (t:Track)-[:IN_GENRE]->(g:Genre {name: 'Children's Music'}) WHERE t.loved = true WITH g, t, count(t) AS loved_tracks ORDER BY loved_tracks DESC RETURN g.name AS genre, t.artist.name AS artist, loved_tracks",
+      "syntax_valid": false,
+      "exact_match": false,
+      "jaccard": 0.0
+    },
+    {
+      "question": "List up to 15 collaborators featured on tracks by $NOT & A$AP Rocky.",
+      "reference_cypher": "MATCH (t:Track)-[:BY]->(a:Artist {name: '$NOT & A$AP Rocky'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH t, f WHERE f IS NOT NULL RETURN f.name AS featured_artist, count(t) AS collaborations ORDER BY collaborations DESC LIMIT 15",
+      "predicted_cypher": "MATCH (a:Artist {name: '$NOT'})-[:BY]->(t:Track)-[:FEATURES]->(c:Artist) WITH c, count(t) AS track_count WHERE c <> a RETURN c.name AS collaborator, track_count ORDER BY track_count DESC LIMIT 15",
+      "syntax_valid": false,
+      "exact_match": false,
+      "jaccard": 0.0
+    }
+  ]
+}

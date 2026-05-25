@@ -3,3 +3,18 @@ __pycache__/
 data_processing/__pycache__/
 .env
 .python-version
+.claude/
+unsloth-pyproject.toml
+
+# Python
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Training artefacts (large files — not committed)
+training/data/
+training/outputs/
+unsloth_compiled_cache/
+wandb/

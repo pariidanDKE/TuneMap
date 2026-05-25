@@ -1,0 +1,274 @@
+# TuneMap Cypher Dataset Generation
+
+**Working directory: project root** (all relative paths below are relative to it).
+
+You are tasked with generating a high-quality (question, Cypher) dataset for the TuneMap
+Apple Music Knowledge Graph. Execute every step below in order. Do not stop until
+`training/data/cypher_dataset_validated.jsonl` has been written.
+
+---
+
+## Step 1 — Read style examples from eval.jsonl
+
+Read `training/data/eval.jsonl`. Each row is a JSON object with a `"conversations"` key
+(list of 3 turns: system / user / assistant). Filter to rows where `source == "external"`.
+Sample 20 rows at random (seed 42). The Cypher is at `row["conversations"][2]["content"]`.
+
+These are your **style reference** — study the Cypher style (aliases, spacing, clause
+ordering, LIMIT placement, how aggregation is written). Your generated Cypher must match
+this style, not a different one.
+
+Print the 3 most representative samples so you can confirm the style before generating.
+
+---
+
+## Step 2 — Study the TuneMap schema
+
+The graph you are writing Cypher for has this exact schema:
+
+```
+Node properties:
+- **Track**
+  - `name`: STRING Example: "The Wolf"
+  - `year`: INTEGER Min: 1945, Max: 2026
+  - `release_date`: STRING Example: "2015-03-01"
+  - `duration_ms`: INTEGER Min: 9814, Max: 2069780
+  - `play_count`: INTEGER Min: 0, Max: 93
+  - `skip_count`: INTEGER Min: 0, Max: 22
+  - `loved`: BOOLEAN
+  - `explicit`: BOOLEAN
+  - `date_added`: STRING Example: "2021-06-15"
+  - `track_number`: INTEGER
+  - `language`: STRING Available options: ['en', 'ru', 'es', 'fr', 'de', 'ja', 'pt', 'it', 'ko', 'ro', 'uk', 'id', 'tl', 'hr', 'fi', 'af', 'so', 'lt', 'nl', 'unknown']
+  - `lyrics_found`: BOOLEAN
+  - `unique_words`: INTEGER
+  - `total_words`: INTEGER
+  - `type_token_ratio`: FLOAT
+  - `repetition_rate`: FLOAT
+- **Artist**
+  - `name`: STRING Example: "Billy Talent"
+- **Album**
+  - `title`: STRING Example: "The Slim Shady LP"
+  - `year`: INTEGER Min: 1945, Max: 2026
+- **Single**
+  - `name`: STRING Example: "Fresh Outta London"
+- **Genre**
+  - `name`: STRING Example: "Alternative"
+- **Era**
+  - `name`: STRING Available options: ['Pre-90s', '90s', '2000s', '2010s', '2020s']
+- **Playlist**
+  - `name`: STRING Available options: ['Billy Talent Essentials', 'Chill', 'Eminem Essentials', 'Fun music', 'My Shazam Tracks', 'Replay 2019', 'Replay 2020']
+- **Mood**
+  - `name`: STRING Example: "introspective"
+- **Topic**
+  - `name`: STRING Example: "alienation"
+- **Place**
+  - `name`: STRING Example: "new york"
+Relationship properties:
+- **IN_GENRE**
+  - `track_count: INTEGER`
+The relationships:
+(:Track)-[:BY]->(:Artist)
+(:Track)-[:FEATURES]->(:Artist)
+(:Track)-[:ON]->(:Album)
+(:Track)-[:IS_SINGLE]->(:Single)
+(:Track)-[:IN_GENRE]->(:Genre)
+(:Track)-[:IN_ERA]->(:Era)
+(:Track)-[:IN_PLAYLIST]->(:Playlist)
+(:Track)-[:HAS_MOOD]->(:Mood)
+(:Track)-[:HAS_TOPIC]->(:Topic)
+(:Track)-[:MENTIONS_PLACE]->(:Place)
+(:Album)-[:BY]->(:Artist)
+(:Artist)-[:IN_GENRE {track_count}]->(:Genre)
+```
+
+**Hard constraints — never violate:**
+- Cypher only. No SQL. Never use SELECT, FROM, GROUP BY.
+- String literals containing double quotes must use single-quote delimiters.
+- No GROUP BY — Cypher aggregation is implicit.
+- No cartesian products — every MATCH clause must share a variable with another clause.
+- LIMIT always comes after ORDER BY.
+- A track has EITHER `[:ON]->(:Album)` OR `[:IS_SINGLE]->(:Single)`, never both.
+- Mood, Topic, Place nodes only exist for tracks where `lyrics_found = true`.
+- Mood and Topic `name` values are always lowercase in the graph.
+- `language` values are ISO 639-1 codes: `'en'`, `'ru'`, `'fr'`, etc. — never `'English'`.
+- "My library" means the whole graph (all tracks), NOT a specific playlist.
+- Use `WITH` to pass variables between pipeline stages, not nested MATCH.
+
+---
+
+## Step 3 — Generate 150 diverse (question, Cypher) pairs
+
+Generate exactly **150** pairs covering the full breadth of the schema. Ensure good
+coverage across: Track properties (play_count, skip_count, loved, explicit, duration_ms),
+Artist (BY and FEATURES), Album, Single (IS_SINGLE), Genre, Era (all 5 must appear),
+Playlist (use only real names from schema), Mood, Topic, Place, language codes,
+lyrics analytics (type_token_ratio, repetition_rate, unique_words), date/time fields,
+aggregation pipelines, multi-hop queries, and counting/statistics.
+
+**Variety rules:**
+- No two questions may be rephrasings of each other. Each must retrieve meaningfully
+  different data.
+- Vary LIMIT values: use 5, 10, 15, 20, 25, 30 across the dataset.
+- Vary whether ORDER BY is ASC or DESC.
+- Include both property filters (`WHERE t.loved = true`) and relationship traversal filters.
+- At least 10 questions must involve 3 or more MATCH clauses.
+- At least 5 questions must use `collect()`.
+- At least 5 questions must use `OPTIONAL MATCH`.
+- At least 3 questions must use `WITH ... WHERE` for intermediate filtering.
+- Do NOT include questions about "my workout playlist" or generic playlist names that
+  don't exist in the schema. Use only playlist names from the Available options above.
+
+---
+
+## Step 4 — Validate every query with EXPLAIN
+
+Load `.env` from the project root (`python-dotenv` or manual parse). Credentials:
+- `NEO4J_URI` (default: `bolt://localhost:7687`)
+- `NEO4J_USER` (default: `neo4j`)
+- `NEO4J_PASSWORD` (default: `54321Dan`)
+
+For each generated (question, Cypher) pair, run two checks:
+
+1. **EXPLAIN** — fast syntax check:
+   ```python
+   session.run(f"EXPLAIN {cypher}").consume()
+   ```
+2. **Live execution** — catches semantic errors (wrong property names, bad node labels, etc.):
+   ```python
+   session.run(cypher).consume()
+   ```
+
+If either raises an exception → fix the Cypher and retry once. If it still fails, discard
+the pair and generate a replacement.
+
+Print a running count: `Validated X / 150` every 10 rows.
+
+Suppress neo4j notification warnings: `logging.getLogger("neo4j.notifications").setLevel(logging.ERROR)`
+
+Target: ≥140 validated pairs. If you end with fewer, generate additional pairs to reach 140.
+
+---
+
+## Step 5 — Format and write output
+
+Each validated pair must be written as one JSON object per line to
+`training/data/cypher_dataset_validated.jsonl`.
+
+Format — match exactly what `prepare_data.py` expects:
+
+```json
+{
+  "messages": [
+    {"role": "system", "content": "<the system prompt below>"},
+    {"role": "user",   "content": "<the question>"},
+    {"role": "assistant", "content": "<the cypher — no markdown fences, no explanation>"}
+  ]
+}
+```
+
+System prompt to use verbatim for every row:
+```
+Task: Generate Cypher statement to query a graph database.
+Instructions: Use only the provided relationship types and properties in the schema.
+Do not use any other relationship types or properties that are not provided in the schema.
+Do not include any explanations or apologies in your responses.
+Do not respond to any questions that might ask anything else than for you to construct a Cypher statement.
+Do not include any text except the generated Cypher statement.
+```
+
+**Cypher field rules:**
+- Raw Cypher only — no triple backticks, no language tag, no explanation text.
+- Multi-line Cypher is fine (use `\n`).
+- No trailing whitespace.
+
+---
+
+## Step 6 — Report
+
+After writing the file, print:
+- Total rows written
+- Count per category
+- Any pairs that were discarded and why
+- 3 random sample rows (question + Cypher) from the final file
+
+
+# Cypher Geenration Journal
+
+# Cyper Dataset Generation Journal
+
+- target_rows: 150
+- accepted_rows: 150
+- discarded_rows: 0
+- output_file: training/data/cyper_validated_dataset.jsonl
+
+## Graph Value Snapshot
+- artists: 1107 values
+- genres: 55 values
+- albums: 1058 values
+- singles: 470 values
+- playlists: 7 values
+- moods: 13 values
+- topics: 49 values
+- places: 760 values
+- languages: 20 values
+
+## Style Samples (External Eval, multi-sample rounds)
+1. Q: Generate Cypher statement to query a graph database. Use only the provided relationship types and properties in the schema. Schema: Node properties: - **Question**   - `favorites`: INTEGER Example: "0"   - `answered`: BO
+   C: MATCH (q:Question) WITH min(q.createdAt) AS earliestDate, max(q.createdAt) AS latestDate RETURN duration.inSeconds(earliestDate, latestDate) AS timeDifference
+2. Q: Generate Cypher statement to query a graph database. Use only the provided relationship types and properties in the schema. Schema: Graph schema: Relevant node labels and their properties (with datatypes) are: Topic {lab
+   C: MATCH (n:Topic) WHERE n.label = 'Dynamical Systems_10' RETURN n
+3. Q: Generate Cypher statement to query a graph database. Use only the provided relationship types and properties in the schema. Schema: Node properties: - **Movie**   - `url`: STRING Example: "https://themoviedb.org/movie/86
+   C: MATCH (a:Actor)-[:ACTED_IN]->(m:Movie)-[:IN_GENRE]->(g:Genre {name: 'Comedy'}) RETURN DISTINCT a.name
+4. Q: Generate Cypher statement to query a graph database. Use only the provided relationship types and properties in the schema. Schema: {"Book": {"count": 10, "labels": [], "properties": {"Book_ID": {"unique": false, "indexe
+   C: MATCH (book:Book), (publication:Publication) where publication.Book_ID =  book.Book_ID return book.Title as Title, publication.Publication_Date as publicationDate
+5. Q: Generate Cypher statement to query a graph database. Use only the provided relationship types and properties in the schema. Schema: {"ASSIGNED_TO": {"count": 27, "properties": {}, "type": "relationship"}, "Machine": {"co
+   C: MATCH (t:Technician) WHERE t.Age = 36 OR t.Age = 37 RETURN t.Name
+6. Q: Generate Cypher statement to query a graph database. Use only the provided relationship types and properties in the schema. Schema: Graph schema: Relevant node labels and their properties (with datatypes) are: Journal {j
+   C: MATCH (n:Journal) WHERE n.journal_id STARTS WITH 'f76' RETURN n
+7. Q: Generate Cypher statement to query a graph database. Use only the provided relationship types and properties in the schema. Schema: Graph schema: Relevant node labels and their properties (with datatypes) are: Journal {n
+   C: MATCH path=(:Journal {name:'Geom. Topol'})-->() RETURN path
+8. Q: Generate Cypher statement to query a graph database. Use only the provided relationship types and properties in the schema. Schema: Node properties: - **Movie**   - `title`: STRING Example: "The Matrix"   - `votes`: INTE
+   C: MATCH (m:Movie) WHERE m.released >= 2000 AND m.released < 2010 RETURN avg(m.votes) AS average_votes
+9. Q: Generate Cypher statement to query a graph database. Use only the provided relationship types and properties in the schema. Schema: Node properties: - **Question**   - `link`: STRING Example: "https://stackoverflow.com/q
+   C: MATCH (q:Question) WHERE q.answer_count > 2 RETURN q ORDER BY q.creation_date LIMIT 3
+
+## Diversity Counters
+- rows: 150
+- collect: 13
+- optional_match: 26
+- with_where: 26
+- match_3_plus: 13
+- era_pre_90s: 3
+- era_90s: 6
+- era_2000s: 3
+- era_2010s: 2
+- era_2020s: 6
+- limit_5: 16
+- limit_10: 41
+- limit_15: 29
+- limit_20: 25
+- limit_25: 11
+- limit_30: 18
+
+## Category Counts
+- artist: 50
+- playlist: 24
+- era: 20
+- language: 16
+- genre: 12
+- lyrics: 12
+- single: 9
+- album: 6
+- optional: 1
+
+## Accepted Samples
+1. Question: Which 20 artists appear most in playlist Fun music?
+   Cypher: MATCH (t:Track)-[:IN_PLAYLIST]->(p:Playlist {name: 'Fun music'}) MATCH (t)-[:BY]->(a:Artist) RETURN a.name AS artist, count(t) AS tracks, sum(t.play_count) AS total_plays ORDER BY tracks DESC, total_plays DESC LIMIT 20
+2. Question: For 070 Shake, collect up to five distinct featured artists ordered by collaboration frequency.
+   Cypher: MATCH (t:Track)-[:BY]->(a:Artist {name: '070 Shake'}) OPTIONAL MATCH (t)-[:FEATURES]->(f:Artist) WITH a, f, count(t) AS c WHERE f IS NOT NULL ORDER BY c DESC RETURN a.name AS artist, collect(f.name)[0..5] AS top_featured
+3. Question: In language code fi, who are the top 5 artists by total plays?
+   Cypher: MATCH (t:Track)-[:BY]->(a:Artist) WHERE t.language = 'fi' RETURN a.name AS artist, sum(t.play_count) AS total_plays, count(t) AS tracks ORDER BY total_plays DESC LIMIT 5
+
+## Discarded Pairs
+- none
